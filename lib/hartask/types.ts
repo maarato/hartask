@@ -59,3 +59,28 @@ export type TaskEvent = {
 export function isTaskStatus(value: unknown): value is TaskStatus {
   return typeof value === 'string' && (TASK_STATUSES as readonly string[]).includes(value);
 }
+
+/**
+ * One handoff row is one checkpoint. The table is append-only: the current
+ * handoff is the most recent row, and older rows stay as history.
+ */
+export type Handoff = {
+  id: number;
+  current_task_id: number | null;
+  what_was_done: string | null;
+  current_state: string | null;
+  next_step: string | null;
+  known_problems: string | null;
+  important_files_json: string | null;
+  important_decisions: string | null;
+  source: string;
+  agent_run_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Handoff with the file list parsed and the referenced task resolved. */
+export type HandoffView = Omit<Handoff, 'important_files_json'> & {
+  important_files: string[];
+  current_task: Task | null;
+};

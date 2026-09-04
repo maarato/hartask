@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getLatestHandoff } from '@/lib/hartask/repositories/handoff';
 import { ensureProject } from '@/lib/hartask/repositories/projects';
 import {
   countTasksByStatus,
@@ -17,9 +18,9 @@ export async function GET() {
     current_task: getCurrentTask(),
     tasks: { counts, ready: counts.READY ?? 0, in_progress: counts.IN_PROGRESS ?? 0 },
     recent_events: listEvents({ limit: 10 }),
-    // Not implemented yet: the handoff and prompt repositories are the next
-    // phase in docs/NEXT-STEPS.md.
-    handoff: null,
+    handoff: getLatestHandoff(),
+    // Not implemented yet: the prompt repository is the next phase in
+    // docs/NEXT-STEPS.md.
     prompts: { queue: null, note: 'TODO: prompt stack repository' }
   });
 }

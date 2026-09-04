@@ -871,6 +871,7 @@ hartask/
 │   │   └── schema.sql
 │   ├── hartask/
 │   │   ├── repositories/
+│   │   │   ├── handoff.ts
 │   │   │   ├── projects.ts
 │   │   │   └── tasks.ts
 │   │   ├── config.ts
@@ -879,6 +880,8 @@ hartask/
 │   └── mcp/
 │       └── tools.ts
 ├── scripts/
+│   ├── dev/
+│   │   └── load-roadmap.mjs
 │   ├── init-db.mjs
 │   └── seed.mjs
 ├── AGENTS.bootstrap.example.md
@@ -934,23 +937,27 @@ Working end to end:
 - task repository: list, hierarchy tree, get, create, update, status
   transitions, notes and events;
 - project repository (single project row, created on first run);
+- handoff repository over `project_handoff`, append-only so every checkpoint is
+  kept and the current handoff is simply the latest row;
 - Tasks view backed by SQLite: hierarchy, status badges, per-status counts,
   create/update forms and a recent-events panel;
+- Summary view backed by SQLite: editable Project Context plus the last
+  handoff, answering the cold-start questions;
 - `GET/POST /api/tasks` and `GET/PATCH /api/tasks/[id]` (accepts `TASK-001` or a
   numeric id) with request validation;
-- `GET /api/context` returning real project, current task, counts and events;
+- `GET/POST /api/handoff` accepting the checkpoint payload documented above;
+- `GET /api/context` returning real project, current task, counts, events and
+  the current handoff — the cold-start briefing an agent reads;
 - database initialization and seed scripts.
 
 Schema only, no runtime code yet:
 
 - Prompt Stack schema;
 - Prompt Runs schema;
-- Project Handoff schema;
 - Harness scan metadata schema.
 
 Documentation and design:
 
-- Summary view with Project Context + Last Context (static placeholder);
 - Harness view skeleton (static placeholder);
 - Hartask Agent Contract;
 - proposed MCP tool names (a list of names, not an MCP implementation);
@@ -965,7 +972,6 @@ The starter intentionally leaves these as the next development phase:
 
 - task detail drawer with full note/event timeline;
 - cascade/grid switch;
-- handoff repository and Summary wired to the database;
 - Prompt Stack UI;
 - atomic prompt claim implementation;
 - prompt run execution lifecycle;

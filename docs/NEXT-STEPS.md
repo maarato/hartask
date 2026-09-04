@@ -13,14 +13,24 @@
    `/tasks` renders the `parent_id` hierarchy from SQLite and mutates through
    server actions; `/api/tasks`, `/api/tasks/[id]` and `/api/context` return
    real rows.
+4. ~~Implement the handoff repository and wire `/summary` and `/api/handoff` to
+   `project_handoff`.~~
+   `lib/hartask/repositories/handoff.ts` is append-only: each checkpoint is a
+   new row and the current handoff is the latest one, so the project keeps the
+   trail of how its state was understood over time. `/api/context` now returns
+   it, which makes that endpoint a real cold-start briefing.
+
+Hartask's own backlog is loaded into Hartask with
+`node scripts/dev/load-roadmap.mjs` against a running server. That script is
+project-specific dev tooling and writes over the HTTP API, which is the same
+path an agent uses; `db:seed` stays generic because Hartask is meant to be
+copied into other repositories.
 
 ## Next
 
-4. Implement the task detail view: description, full note list and the complete
+5. Implement the task detail view: description, full note list and the complete
    event timeline for a single task (the list view only shows the last events
    across the project).
-5. Implement the handoff repository and wire `/summary` and `/api/handoff` to
-   `project_handoff`.
 6. Implement Prompt Stack and the atomic `claim_next_prompt` transaction.
 7. Implement prompt runs.
 8. Replace `/api/mcp` placeholder with a real MCP Streamable HTTP endpoint on the
@@ -42,3 +52,10 @@
   of the result set, so a filtered view never hides tasks silently.
 - Status transitions are unconstrained: any status can move to any other. If the
   lifecycle should be enforced, that belongs in the repository, not the UI.
+- `AGENTS.bootstrap.example.md` still describes `hartask_start_session` and
+  `hartask_claim_next_prompt`, which do not exist. Copied as is, it makes an
+  agent fail on the first call. Fixing that is the next task on the board.
+- An agent can only reach Hartask while the dev server is running. A `hartask`
+  CLI would remove that dependency for much less work than MCP, and does not
+  break the "never touch the database directly" rule, because the CLI is
+  Hartask.
