@@ -91,3 +91,34 @@ summary { cursor:pointer; }
 
 .events { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
 .events li { border-left:2px solid #2a2f37; padding-left:10px; font-size:13px; }
+
+/* Summary: full-width stacked sections. Side by side, each block was too
+   narrow for prose and the handoff wrapped into an unreadable column. */
+.sections { gap:20px; }
+.section-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+.section-head h2 { margin:0; }
+.section-head p { margin:0; }
+
+/* Project Context is read far more often than it is edited, so it renders as
+   text and keeps the line breaks the author typed. */
+.prose { white-space:pre-wrap; line-height:1.6; }
+
+/* Label/value rows, so the cold-start questions can be scanned instead of
+   read as a wall of paragraphs. */
+.handoff { display:grid; grid-template-columns:minmax(130px, 170px) 1fr; gap:12px 20px; margin:0; }
+.handoff dt { color:#9aa4b2; font-size:13px; padding-top:2px; }
+.handoff dd { margin:0; line-height:1.55; }
+.handoff .next-step {
+  border-left:3px solid #3d6be0; padding:2px 0 2px 12px; margin-left:-15px; font-weight:600;
+}
+@media (max-width: 620px) {
+  .handoff { grid-template-columns:1fr; gap:4px 0; }
+  .handoff dd { margin-bottom:10px; }
+  .handoff .next-step { margin-left:0; }
+}
+
+.plain { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; }
+.plain li { padding-left:14px; text-indent:-14px; }
+.plain li::before { content:'— '; color:#9aa4b2; }
+.chips { display:flex; flex-wrap:wrap; gap:6px; }
+.chips code { font-size:12px; }
