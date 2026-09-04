@@ -50,7 +50,8 @@ copied into other repositories.
 
 ## Known gaps in the current layer
 
-- No tests yet. The repository layer is the natural first place to add them.
+- The repository layer is covered by `npm test`; the API routes and the UI are
+  not. Both were verified by hand against a running server, which is weaker.
 - `tasks`, `prompts` and `project_handoff` have no `project_id`: Hartask is
   single-project by design, so the `projects` table holds exactly one row. If
   multi-project is ever wanted, that is a schema migration, not a config change.

@@ -47,11 +47,14 @@ eventually write the config file; the variables stay as the per-run override.
 ## Verifying a change
 
 ```bash
-npm run typecheck && npm run build
+npm run typecheck && npm test && npm run build
 ```
 
-Both must pass. There are no tests yet — adding them to the repository layer is
-`TASK-007` on the board.
+All three must pass. Tests live in `tests/` and run on vitest; each test file
+gets its own temporary database through `HARTASK_DATABASE`, set in
+`tests/setup.ts`, so they never touch the project's board. They cover the
+repository layer: id generation, event recording, ordering, the tree, and the
+archiving rules. Behaviour asserted in a commit message belongs in a test.
 
 ## Conventions this codebase already follows
 

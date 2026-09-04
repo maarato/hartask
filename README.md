@@ -898,6 +898,11 @@ hartask/
 │   │   └── load-roadmap.mjs
 │   ├── init-db.mjs
 │   └── seed.mjs
+├── tests/
+│   ├── handoff.repository.test.ts
+│   ├── helpers.ts
+│   ├── setup.ts
+│   └── tasks.repository.test.ts
 ├── AGENTS.bootstrap.example.md
 ├── hartask.config.example.json
 ├── next.config.mjs
@@ -969,7 +974,8 @@ Working end to end:
 - `GET/POST /api/handoff` accepting the checkpoint payload documented above;
 - `GET /api/context` returning real project, current task, counts, events and
   the current handoff — the cold-start briefing an agent reads;
-- database initialization and seed scripts.
+- database initialization and seed scripts;
+- 32 repository tests on vitest, each file against its own temporary database.
 
 Schema only, no runtime code yet:
 
@@ -1005,7 +1011,7 @@ The starter intentionally leaves these as the next development phase:
 - filesystem watching;
 - git metadata enrichment;
 - lifecycle hook integrations;
-- tests.
+- tests for the API routes and the UI (the repository layer is covered).
 
 Hartask V1 should **not** initially add:
 
