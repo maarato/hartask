@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import {
+  archiveAllArchivable,
   archiveTask,
   createTask,
   setTaskStatus,
@@ -68,6 +69,12 @@ export async function unarchiveTaskAction(formData: FormData): Promise<void> {
   if (!publicId) return;
 
   unarchiveTask(publicId);
+
+  revalidatePath('/tasks');
+}
+
+export async function archiveAllArchivableAction(): Promise<void> {
+  archiveAllArchivable();
 
   revalidatePath('/tasks');
 }

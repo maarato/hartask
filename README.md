@@ -947,7 +947,10 @@ Working end to end:
 - one-process / one-port development configuration;
 - SQLite connection layer (`lib/db/client.ts`) with WAL, foreign keys and
   automatic schema bootstrap;
-- config loader for `hartask.config.json`;
+- config loader for `hartask.config.json`, with environment overrides
+  (`HARTASK_DATABASE`, `HARTASK_PROJECT_NAME`,
+  `HARTASK_ARCHIVE_REMINDER_THRESHOLD`) taking precedence, so a single run can
+  be redirected without editing the file;
 - task repository: list, hierarchy tree, get, create, update, status
   transitions, notes and events;
 - project repository (single project row, created on first run);
@@ -957,7 +960,8 @@ Working end to end:
   DONE last), hierarchy, per-status counts, create/update forms and a
   recent-events panel;
 - archiving for root tasks in DONE or BACKLOG, cascading to their subtasks and
-  reversible from an "Archivadas" section;
+  reversible from an "Archivadas" section, with a reminder and a bulk
+  "archive all" once archivable work passes a configurable threshold;
 - Summary view backed by SQLite: editable Project Context plus the last
   handoff, answering the cold-start questions;
 - `GET/POST /api/tasks` and `GET/PATCH /api/tasks/[id]` (accepts `TASK-001` or a

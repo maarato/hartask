@@ -6,6 +6,8 @@ export type HartaskConfig = {
   projectRoot: string;
   database: string;
   projectName: string;
+  /** Archivable root tasks tolerated before the board suggests archiving. */
+  archiveReminderThreshold: number;
   harnessScan: { enabled: boolean; paths: string[] };
 };
 
@@ -14,10 +16,34 @@ const DEFAULTS: HartaskConfig = {
   projectRoot: '..',
   database: './data/hartask.sqlite',
   projectName: 'Current Project',
+  archiveReminderThreshold: 15,
   harnessScan: { enabled: true, paths: [] }
 };
 
+/**
+ * Environment overrides win over hartask.config.json, which wins over the
+ * defaults. A settings page will eventually write the config file; the
+ * variables stay as the escape hatch for a single run.
+ */
+const ENV_KEYS = {
+  database: 'HARTASK_DATABASE',
+  projectName: 'HARTASK_PROJECT_NAME',
+  archiveReminderThreshold: 'HARTASK_ARCHIVE_REMINDER_THRESHOLD'
+} as const;
+
 let cached: HartaskConfig | null = null;
+
+function readNumberEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') return fallback;
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    console.warn(`[hartask] ${name} is not a non-negative number ("${raw}"), using ${fallback}`);
+    return fallback;
+  }
+  return parsed;
+}
 
 /** Reads hartask.config.json when present; falls back to defaults otherwise. */
 export function loadConfig(): HartaskConfig {
@@ -34,12 +60,27 @@ export function loadConfig(): HartaskConfig {
     }
   }
 
-  cached = {
+  const merged: HartaskConfig = {
     ...DEFAULTS,
     ...overrides,
     harnessScan: { ...DEFAULTS.harnessScan, ...overrides.harnessScan }
   };
+
+  cached = {
+    ...merged,
+    database: process.env[ENV_KEYS.database] || merged.database,
+    projectName: process.env[ENV_KEYS.projectName] || merged.projectName,
+    archiveReminderThreshold: readNumberEnv(
+      ENV_KEYS.archiveReminderThreshold,
+      merged.archiveReminderThreshold
+    )
+  };
   return cached;
+}
+
+/** Drops the memoized config. Only needed by tests that change the env. */
+export function resetConfigCache(): void {
+  cached = null;
 }
 
 export function databasePath(): string {
@@ -48,4 +89,8 @@ export function databasePath(): string {
 
 export function projectRootPath(): string {
   return resolve(process.cwd(), loadConfig().projectRoot);
+}
+
+export function archiveReminderThreshold(): number {
+  return loadConfig().archiveReminderThreshold;
 }

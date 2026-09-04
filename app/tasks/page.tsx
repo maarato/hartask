@@ -1,5 +1,7 @@
+import { archiveReminderThreshold } from '@/lib/hartask/config';
 import { ensureProject } from '@/lib/hartask/repositories/projects';
 import {
+  countArchivableRoots,
   countTasksByStatus,
   listEvents,
   listTasks,
@@ -13,6 +15,7 @@ import {
   type TaskNode
 } from '@/lib/hartask/types';
 import {
+  archiveAllArchivableAction,
   archiveTaskAction,
   createTaskAction,
   setNextActionAction,
@@ -138,6 +141,24 @@ function TaskCard({ node, depth }: { node: TaskNode; depth: number }) {
   );
 }
 
+/**
+ * Shown once archivable work passes the configured threshold. The board is
+ * only useful while it can be read at a glance, so it says when it is drifting
+ * out of that range instead of waiting to be noticed.
+ */
+function ArchiveReminder({ count, threshold }: { count: number; threshold: number }) {
+  return (
+    <form action={archiveAllArchivableAction} className="card notice">
+      <span>
+        <strong>{count} tasks archivables</strong> en el board (DONE o BACKLOG, más de{' '}
+        {threshold}). Archivarlas las saca de la vista sin borrarlas; siguen en{' '}
+        <em>Archivadas</em>.
+      </span>
+      <button type="submit">Archivar todo</button>
+    </form>
+  );
+}
+
 function ArchivedTasks({ tasks }: { tasks: TaskNode[] }) {
   return (
     <details className="card">
@@ -216,6 +237,8 @@ export default function TasksPage() {
   const archived = listTaskTree({ onlyArchived: true });
   const counts = countTasksByStatus();
   const events = listEvents({ limit: 8 });
+  const archivable = countArchivableRoots();
+  const threshold = archiveReminderThreshold();
 
   return (
     <section className="stack">
@@ -232,6 +255,10 @@ export default function TasksPage() {
         ))}
         {flat.length === 0 ? <span className="muted">Sin tasks activas.</span> : null}
       </div>
+
+      {archivable > threshold ? (
+        <ArchiveReminder count={archivable} threshold={threshold} />
+      ) : null}
 
       <NewTaskForm parents={flat} />
 

@@ -3,6 +3,7 @@
   "projectRoot": "..",
   "database": "./data/hartask.sqlite",
   "projectName": "Current Project",
+  "archiveReminderThreshold": 15,
   "harnessScan": {
     "enabled": true,
     "paths": [

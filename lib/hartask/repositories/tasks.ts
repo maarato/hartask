@@ -389,3 +389,42 @@ export function unarchiveTask(ref: number | string, agentId?: string | null): Ta
 
   return run();
 }
+
+/** Root tasks currently eligible for archiving, used by the board reminder. */
+export function listArchivableRoots(): Task[] {
+  return getDb()
+    .prepare(
+      `SELECT * FROM tasks
+       WHERE parent_id IS NULL
+         AND archived_at IS NULL
+         AND status IN (${ARCHIVABLE_STATUSES.map(() => '?').join(',')})
+       ORDER BY ${STATUS_RANK_SQL}, priority DESC, id ASC`
+    )
+    .all(...ARCHIVABLE_STATUSES) as Task[];
+}
+
+export function countArchivableRoots(): number {
+  const row = getDb()
+    .prepare(
+      `SELECT COUNT(*) AS total FROM tasks
+       WHERE parent_id IS NULL
+         AND archived_at IS NULL
+         AND status IN (${ARCHIVABLE_STATUSES.map(() => '?').join(',')})`
+    )
+    .get(...ARCHIVABLE_STATUSES) as { total: number };
+  return row.total;
+}
+
+/**
+ * Archives every eligible root task in one transaction, reusing archiveTask so
+ * the rules and the per-task events stay identical to archiving one by one.
+ * Per-task events are kept on purpose: each task really was archived, and a
+ * single bulk event would leave those tasks with no record of it.
+ */
+export function archiveAllArchivable(agentId?: string | null): Task[] {
+  const db = getDb();
+  const run = db.transaction((): Task[] =>
+    listArchivableRoots().map((task) => archiveTask(task.id, agentId))
+  );
+  return run();
+}

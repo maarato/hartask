@@ -34,6 +34,16 @@ If the database is empty, `node scripts/dev/load-roadmap.mjs` reloads this
 project's backlog through the API. `npm run db:seed` is the generic product
 seed and is not this project's board.
 
+## Configuration
+
+Settings resolve as environment variable, then `hartask.config.json`, then the
+defaults in `lib/hartask/config.ts`. `HARTASK_DATABASE` points the instance at
+another database — which is how the tests get an isolated one —
+`HARTASK_PROJECT_NAME` renames the project, and
+`HARTASK_ARCHIVE_REMINDER_THRESHOLD` sets how many archivable root tasks the
+board tolerates before it suggests archiving. A settings page (`TASK-037`) will
+eventually write the config file; the variables stay as the per-run override.
+
 ## Verifying a change
 
 ```bash
