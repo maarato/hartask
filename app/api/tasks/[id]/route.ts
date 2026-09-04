@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import {
   addNote,
+  archiveTask,
   getTask,
   listEvents,
   listNotes,
+  unarchiveTask,
   updateTask
 } from '@/lib/hartask/repositories/tasks';
 import { isTaskStatus } from '@/lib/hartask/types';
@@ -43,6 +45,20 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
   if (body.status !== undefined && !isTaskStatus(body.status)) {
     return NextResponse.json({ error: `Invalid status: ${String(body.status)}` }, { status: 400 });
+  }
+
+  // Archiving has its own rules (root tasks only, archivable statuses only),
+  // so it is applied through the repository rather than as a plain column set.
+  if (typeof body.archived === 'boolean') {
+    const agentId = typeof body.agent_id === 'string' ? body.agent_id : null;
+    try {
+      const result = body.archived
+        ? archiveTask(task.id, agentId)
+        : unarchiveTask(task.id, agentId);
+      return NextResponse.json({ task: result });
+    } catch (error) {
+      return NextResponse.json({ error: (error as Error).message }, { status: 409 });
+    }
   }
 
   const updated = updateTask(task.id, {

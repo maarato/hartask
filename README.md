@@ -755,7 +755,17 @@ Important design choices:
 - events separated from task current state;
 - prompts separated from prompt runs;
 - handoff separated from task/event history;
-- harness metadata stores paths/hash/scope rather than becoming the source of truth.
+- harness metadata stores paths/hash/scope rather than becoming the source of truth;
+- `tasks.archived_at` is orthogonal to `status`: archiving clears a saturated
+  board without losing whether the work was finished or abandoned, which an
+  `ARCHIVED` status would have destroyed.
+
+Columns added after the initial schema are listed in `ADDED_COLUMNS` in
+`lib/db/client.ts` and applied with `ALTER TABLE` on boot, because
+`CREATE TABLE IF NOT EXISTS` leaves an existing table untouched and the Hartask
+database holds project state that must not be discarded to pick up a change.
+The mechanism is additive only; anything that rewrites or drops data needs a
+real versioned migration.
 
 The SQLite file should normally live at:
 
@@ -943,8 +953,11 @@ Working end to end:
 - project repository (single project row, created on first run);
 - handoff repository over `project_handoff`, append-only so every checkpoint is
   kept and the current handoff is simply the latest row;
-- Tasks view backed by SQLite: hierarchy, status badges, per-status counts,
-  create/update forms and a recent-events panel;
+- Tasks view backed by SQLite: collapsed cards ordered by status (READY first,
+  DONE last), hierarchy, per-status counts, create/update forms and a
+  recent-events panel;
+- archiving for root tasks in DONE or BACKLOG, cascading to their subtasks and
+  reversible from an "Archivadas" section;
 - Summary view backed by SQLite: editable Project Context plus the last
   handoff, answering the cold-start questions;
 - `GET/POST /api/tasks` and `GET/PATCH /api/tasks/[id]` (accepts `TASK-001` or a

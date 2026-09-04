@@ -1,7 +1,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createTask, setTaskStatus, updateTask } from '@/lib/hartask/repositories/tasks';
+import {
+  archiveTask,
+  createTask,
+  setTaskStatus,
+  unarchiveTask,
+  updateTask
+} from '@/lib/hartask/repositories/tasks';
 import { isTaskStatus } from '@/lib/hartask/types';
 
 function text(formData: FormData, field: string): string | null {
@@ -44,6 +50,24 @@ export async function setNextActionAction(formData: FormData): Promise<void> {
   if (!publicId) return;
 
   updateTask(publicId, { nextAction: text(formData, 'next_action') });
+
+  revalidatePath('/tasks');
+}
+
+export async function archiveTaskAction(formData: FormData): Promise<void> {
+  const publicId = text(formData, 'public_id');
+  if (!publicId) return;
+
+  archiveTask(publicId);
+
+  revalidatePath('/tasks');
+}
+
+export async function unarchiveTaskAction(formData: FormData): Promise<void> {
+  const publicId = text(formData, 'public_id');
+  if (!publicId) return;
+
+  unarchiveTask(publicId);
 
   revalidatePath('/tasks');
 }

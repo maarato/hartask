@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS tasks (
   priority INTEGER NOT NULL DEFAULT 0,
   next_action TEXT,
   blocked_reason TEXT,
+  -- Orthogonal to status: archiving hides a task from the board without
+  -- losing whether it was finished or abandoned.
+  archived_at TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

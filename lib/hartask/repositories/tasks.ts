@@ -1,6 +1,8 @@
 import { getDb } from '@/lib/db/client';
 import {
+  ARCHIVABLE_STATUSES,
   CLOSED_STATUSES,
+  isArchivable,
   STATUS_ORDER,
   type Task,
   type TaskEvent,
@@ -26,6 +28,9 @@ export type ListTasksFilter = {
   status?: TaskStatus[];
   parentId?: number | null;
   includeClosed?: boolean;
+  /** Archived tasks are off the board unless explicitly asked for. */
+  includeArchived?: boolean;
+  onlyArchived?: boolean;
 };
 
 /** Flat list, ordered by STATUS_ORDER, then priority, then oldest first. */
@@ -45,6 +50,9 @@ export function listTasks(filter: ListTasksFilter = {}): Task[] {
     where.push(filter.parentId === null ? `parent_id IS NULL` : `parent_id = ?`);
     if (filter.parentId !== null) params.push(filter.parentId);
   }
+
+  if (filter.onlyArchived) where.push(`archived_at IS NOT NULL`);
+  else if (!filter.includeArchived) where.push(`archived_at IS NULL`);
 
   const sql = `
     SELECT * FROM tasks
@@ -80,9 +88,12 @@ export function getTask(ref: number | string): Task | null {
   return (getDb().prepare(sql).get(ref) as Task | undefined) ?? null;
 }
 
+/** Counts the active board only; archived tasks are not pending work. */
 export function countTasksByStatus(): Record<TaskStatus, number> {
   const rows = getDb()
-    .prepare(`SELECT status, COUNT(*) AS total FROM tasks GROUP BY status`)
+    .prepare(
+      `SELECT status, COUNT(*) AS total FROM tasks WHERE archived_at IS NULL GROUP BY status`
+    )
     .all() as { status: TaskStatus; total: number }[];
 
   const counts = {} as Record<TaskStatus, number>;
@@ -95,7 +106,7 @@ export function getCurrentTask(): Task | null {
   const row = getDb()
     .prepare(
       `SELECT * FROM tasks
-       WHERE status IN ('IN_PROGRESS','READY')
+       WHERE status IN ('IN_PROGRESS','READY') AND archived_at IS NULL
        ORDER BY CASE status WHEN 'IN_PROGRESS' THEN 0 ELSE 1 END, priority DESC, id ASC
        LIMIT 1`
     )
@@ -300,4 +311,81 @@ export function listEvents(options: { taskId?: number; limit?: number } = {}): T
   return getDb()
     .prepare(`SELECT * FROM task_events WHERE task_id = ? ORDER BY id DESC LIMIT ?`)
     .all(options.taskId, limit) as TaskEvent[];
+}
+
+// ---------------------------------------------------------------------------
+// Archiving
+// ---------------------------------------------------------------------------
+
+/**
+ * Archiving hides a task from the board without deleting it or losing its
+ * status, so a saturated board can be cleared while the history stays intact.
+ *
+ * Only root tasks can be archived, and archiving one takes its subtasks with
+ * it: leaving children behind would promote them to root level in
+ * listTaskTree(), which is the opposite of what archiving is for.
+ */
+export function archiveTask(ref: number | string, agentId?: string | null): Task {
+  const db = getDb();
+
+  const run = db.transaction((): Task => {
+    const task = getTask(ref);
+    if (!task) throw new Error(`Task not found: ${ref}`);
+    if (task.parent_id !== null) {
+      throw new Error(`${task.public_id} is a subtask; archive its parent instead`);
+    }
+    if (!isArchivable(task.status)) {
+      throw new Error(
+        `${task.public_id} is ${task.status}; only ${ARCHIVABLE_STATUSES.join(' and ')} can be archived`
+      );
+    }
+
+    db.prepare(
+      `UPDATE tasks
+       SET archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? OR parent_id = ?`
+    ).run(task.id, task.id);
+
+    const archived = db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(task.id) as Task;
+
+    recordEvent({
+      taskId: archived.id,
+      eventType: 'TASK_ARCHIVED',
+      summary: `${archived.public_id} archived from ${archived.status}`,
+      agentId: agentId ?? null
+    });
+
+    return archived;
+  });
+
+  return run();
+}
+
+/** Puts an archived task, and its subtasks, back on the board. */
+export function unarchiveTask(ref: number | string, agentId?: string | null): Task {
+  const db = getDb();
+
+  const run = db.transaction((): Task => {
+    const task = getTask(ref);
+    if (!task) throw new Error(`Task not found: ${ref}`);
+
+    db.prepare(
+      `UPDATE tasks
+       SET archived_at = NULL, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? OR parent_id = ?`
+    ).run(task.id, task.id);
+
+    const restored = db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(task.id) as Task;
+
+    recordEvent({
+      taskId: restored.id,
+      eventType: 'TASK_UNARCHIVED',
+      summary: `${restored.public_id} restored to the board`,
+      agentId: agentId ?? null
+    });
+
+    return restored;
+  });
+
+  return run();
 }

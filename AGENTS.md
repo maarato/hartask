@@ -61,6 +61,9 @@ Both must pass. There are no tests yet — adding them to the repository layer i
   rename is not. Do not log every write.
 - **Statuses live in one place**: `TASK_STATUSES` in `lib/hartask/types.ts`,
   matching the CHECK constraint in `lib/db/schema.sql`. Change both together.
+- **A new column goes in two places**: `lib/db/schema.sql` for fresh databases
+  and `ADDED_COLUMNS` in `lib/db/client.ts` for existing ones. Skipping the
+  second leaves every current database silently without the column.
 
 ## Keep the documentation honest
 

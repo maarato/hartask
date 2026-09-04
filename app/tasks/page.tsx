@@ -5,11 +5,43 @@ import {
   listTasks,
   listTaskTree
 } from '@/lib/hartask/repositories/tasks';
-import { STATUS_ORDER, TASK_STATUSES, type Task, type TaskNode } from '@/lib/hartask/types';
-import { createTaskAction, setNextActionAction, setTaskStatusAction } from './actions';
+import {
+  isArchivable,
+  STATUS_ORDER,
+  TASK_STATUSES,
+  type Task,
+  type TaskNode
+} from '@/lib/hartask/types';
+import {
+  archiveTaskAction,
+  createTaskAction,
+  setNextActionAction,
+  setTaskStatusAction,
+  unarchiveTaskAction
+} from './actions';
 
 // The page reads SQLite on every request, so it must never be prerendered.
 export const dynamic = 'force-dynamic';
+
+function ArchiveIcon({ restore = false }: { restore?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="15"
+      height="15"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="4" width="18" height="4" rx="1" />
+      <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8" />
+      {restore ? <path d="M12 17v-5M9.5 14.5 12 12l2.5 2.5" /> : <path d="M10 12h4" />}
+    </svg>
+  );
+}
 
 /** Subtasks that still need work, so a collapsed parent says what it is hiding. */
 function openChildCount(node: TaskNode): number {
@@ -24,6 +56,8 @@ function openChildCount(node: TaskNode): number {
  */
 function TaskCard({ node, depth }: { node: TaskNode; depth: number }) {
   const open = openChildCount(node);
+  // Archiving takes the whole branch, so it is offered on root tasks only.
+  const canArchive = node.parent_id === null && isArchivable(node.status);
 
   return (
     <details className="card task" data-status={node.status} style={{ marginLeft: depth * 20 }}>
@@ -37,8 +71,24 @@ function TaskCard({ node, depth }: { node: TaskNode; depth: number }) {
           </span>
           {node.children.length ? (
             <span className="muted small">
-              {open ? `${open}/${node.children.length} subtasks abiertas` : `${node.children.length} subtasks`}
+              {open
+                ? `${open}/${node.children.length} subtasks abiertas`
+                : `${node.children.length} subtasks`}
             </span>
+          ) : null}
+
+          {canArchive ? (
+            <form action={archiveTaskAction} className="task-actions">
+              <input type="hidden" name="public_id" value={node.public_id} />
+              <button
+                type="submit"
+                className="icon-button"
+                title={`Archivar ${node.public_id}${node.children.length ? ' y sus subtasks' : ''}`}
+                aria-label={`Archivar ${node.public_id}`}
+              >
+                <ArchiveIcon />
+              </button>
+            </form>
           ) : null}
         </span>
 
@@ -88,6 +138,43 @@ function TaskCard({ node, depth }: { node: TaskNode; depth: number }) {
   );
 }
 
+function ArchivedTasks({ tasks }: { tasks: TaskNode[] }) {
+  return (
+    <details className="card">
+      <summary>
+        <strong>Archivadas</strong> <span className="muted">· {tasks.length}</span>
+      </summary>
+      <div className="stack form">
+        {tasks.map((task) => (
+          <div key={task.id} className="row archived-row">
+            <span className="badge" data-status={task.status}>
+              {task.status}
+            </span>
+            <span className="task-title">
+              {task.public_id} · {task.title}
+            </span>
+            {task.children.length ? (
+              <span className="muted small">{task.children.length} subtasks</span>
+            ) : null}
+            <span className="muted small">{task.archived_at}</span>
+            <form action={unarchiveTaskAction} className="task-actions">
+              <input type="hidden" name="public_id" value={task.public_id} />
+              <button
+                type="submit"
+                className="icon-button"
+                title={`Restaurar ${task.public_id} al board`}
+                aria-label={`Restaurar ${task.public_id}`}
+              >
+                <ArchiveIcon restore />
+              </button>
+            </form>
+          </div>
+        ))}
+      </div>
+    </details>
+  );
+}
+
 function NewTaskForm({ parents }: { parents: Task[] }) {
   return (
     <details className="card">
@@ -126,6 +213,7 @@ export default function TasksPage() {
 
   const tree = listTaskTree();
   const flat = listTasks();
+  const archived = listTaskTree({ onlyArchived: true });
   const counts = countTasksByStatus();
   const events = listEvents({ limit: 8 });
 
@@ -142,7 +230,7 @@ export default function TasksPage() {
             {status} · {counts[status]}
           </span>
         ))}
-        {flat.length === 0 ? <span className="muted">Sin tasks todavía.</span> : null}
+        {flat.length === 0 ? <span className="muted">Sin tasks activas.</span> : null}
       </div>
 
       <NewTaskForm parents={flat} />
@@ -150,8 +238,9 @@ export default function TasksPage() {
       {tree.length === 0 ? (
         <article className="card">
           <p className="muted">
-            La base de datos está vacía. Crea una task arriba o ejecuta <code>npm run db:seed</code>{' '}
-            para cargar ejemplos.
+            No hay tasks en el board. Crea una arriba
+            {archived.length ? ', restaura una archivada abajo' : ''} o ejecuta{' '}
+            <code>npm run db:seed</code> para cargar ejemplos.
           </p>
         </article>
       ) : (
@@ -161,6 +250,8 @@ export default function TasksPage() {
           ))}
         </div>
       )}
+
+      {archived.length ? <ArchivedTasks tasks={archived} /> : null}
 
       {events.length ? (
         <article className="card">

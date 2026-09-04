@@ -16,7 +16,12 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const status = params.getAll('status').filter(isTaskStatus) as TaskStatus[];
   const includeClosed = params.get('includeClosed') !== 'false';
-  const filter = { status: status.length ? status : undefined, includeClosed };
+  const filter = {
+    status: status.length ? status : undefined,
+    includeClosed,
+    includeArchived: params.get('includeArchived') === 'true',
+    onlyArchived: params.get('onlyArchived') === 'true'
+  };
 
   return NextResponse.json({
     items: listTasks(filter),

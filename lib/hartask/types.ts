@@ -13,6 +13,17 @@ export type TaskStatus = (typeof TASK_STATUSES)[number];
 /** Statuses that no longer represent pending work. */
 export const CLOSED_STATUSES: TaskStatus[] = ['DONE', 'CANCELLED'];
 
+/**
+ * Statuses a task can be archived from. Work in flight is deliberately not
+ * archivable: hiding an IN_PROGRESS or BLOCKED task would hide the very thing
+ * the board exists to surface.
+ */
+export const ARCHIVABLE_STATUSES: TaskStatus[] = ['DONE', 'BACKLOG'];
+
+export function isArchivable(status: TaskStatus): boolean {
+  return ARCHIVABLE_STATUSES.includes(status);
+}
+
 export type Project = {
   id: number;
   name: string;
@@ -32,6 +43,8 @@ export type Task = {
   priority: number;
   next_action: string | null;
   blocked_reason: string | null;
+  /** ISO timestamp when the task was archived; null while it is on the board. */
+  archived_at: string | null;
   created_at: string;
   updated_at: string;
 };
