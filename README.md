@@ -871,6 +871,7 @@ hartask/
 │   ├── harness/
 │   ├── summary/
 │   ├── tasks/
+│   │   └── [id]/
 │   ├── globals.css
 │   ├── layout.tsx
 │   └── page.tsx
@@ -970,6 +971,9 @@ Working end to end:
   "archive all" once archivable work passes a configurable threshold;
 - Summary view backed by SQLite: editable Project Context plus the last
   handoff, answering the cold-start questions;
+- task detail at `/tasks/[id]`: the task's own notes and its complete event
+  timeline, which the board cannot show because it only lists the last events
+  across the project;
 - `GET/POST /api/tasks` and `GET/PATCH /api/tasks/[id]` (accepts `TASK-001` or a
   numeric id) with request validation;
 - `GET/POST /api/handoff` accepting the checkpoint payload documented above;
@@ -998,7 +1002,6 @@ Documentation and design:
 
 The starter intentionally leaves these as the next development phase:
 
-- task detail drawer with full note/event timeline;
 - cascade/grid switch;
 - Prompt Stack UI;
 - atomic prompt claim implementation;

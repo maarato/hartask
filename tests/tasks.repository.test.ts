@@ -7,6 +7,7 @@ import {
   createTask,
   getCurrentTask,
   getTask,
+  getTaskByRef,
   listEvents,
   listTasks,
   listTaskTree,
@@ -43,6 +44,21 @@ describe('createTask', () => {
     const events = listEvents({ taskId: task.id });
     expect(events).toHaveLength(1);
     expect(events[0].event_type).toBe('TASK_CREATED');
+  });
+});
+
+describe('getTaskByRef', () => {
+  it('accepts a public id and a numeric row id from the same path segment', () => {
+    const task = createTask({ title: 'a task' });
+
+    expect(getTaskByRef('TASK-001')?.id).toBe(task.id);
+    expect(getTaskByRef(String(task.id))?.id).toBe(task.id);
+  });
+
+  it('returns null for an unknown reference instead of throwing', () => {
+    expect(getTaskByRef('TASK-999')).toBeNull();
+    expect(getTaskByRef('4242')).toBeNull();
+    expect(getTaskByRef('not-an-id')).toBeNull();
   });
 });
 

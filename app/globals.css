@@ -122,3 +122,24 @@ summary { cursor:pointer; }
 .plain li::before { content:'— '; color:#9aa4b2; }
 .chips { display:flex; flex-wrap:wrap; gap:6px; }
 .chips code { font-size:12px; }
+
+/* Task detail. The public id is the permalink into the detail view, so it is
+   the part of the card title that reads as a link. */
+.task-link { color:#9dbaff; }
+.task-link:hover { text-decoration:underline; }
+.detail-title { margin:0; font-size:22px; }
+
+/* Rows that already lead with a badge, so no bullet or dash in front. */
+.linked-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
+.linked-list li { margin:0; }
+
+.notes { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:14px; }
+.notes li { border-left:2px solid #2a2f37; padding-left:12px; }
+
+.timeline { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:14px; }
+.timeline li { border-left:2px solid #2a2f37; padding-left:12px; position:relative; }
+.timeline li::before {
+  content:''; position:absolute; left:-5px; top:6px;
+  width:8px; height:8px; border-radius:50%; background:#3b4350;
+}
+.timeline-head { margin:0; gap:8px; }

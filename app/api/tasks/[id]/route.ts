@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import {
   addNote,
   archiveTask,
-  getTask,
+  getTaskByRef,
   listEvents,
   listNotes,
   unarchiveTask,
@@ -14,14 +14,9 @@ export const dynamic = 'force-dynamic';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-/** Accepts either the public id (TASK-001) or the numeric row id. */
-function reference(id: string): number | string {
-  return /^\d+$/.test(id) ? Number(id) : id;
-}
-
 export async function GET(_request: Request, { params }: RouteContext) {
   const { id } = await params;
-  const task = getTask(reference(id));
+  const task = getTaskByRef(id);
   if (!task) return NextResponse.json({ error: `Task not found: ${id}` }, { status: 404 });
 
   return NextResponse.json({
@@ -33,7 +28,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
 export async function PATCH(request: Request, { params }: RouteContext) {
   const { id } = await params;
-  const task = getTask(reference(id));
+  const task = getTaskByRef(id);
   if (!task) return NextResponse.json({ error: `Task not found: ${id}` }, { status: 404 });
 
   let body: Record<string, unknown>;

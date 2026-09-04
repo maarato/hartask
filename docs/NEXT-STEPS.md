@@ -32,11 +32,13 @@ copied into other repositories.
    `lib/hartask/contract.ts` separates the durable rules from what is callable
    today. `/api/mcp` no longer advertises unimplemented tools.
 
+6. ~~Implement the task detail view.~~
+   `/tasks/[id]` accepts a public id or a row id, and shows the task's own
+   notes and its complete event timeline, with status transitions rendered from
+   the recorded payload. The board links to it from each public id.
+
 ## Next
 
-6. Implement the task detail view: description, full note list and the complete
-   event timeline for a single task (the list view only shows the last events
-   across the project).
 7. Implement Prompt Stack and the atomic `claim_next_prompt` transaction.
 8. Implement prompt runs.
 9. Replace `/api/mcp` placeholder with a real MCP Streamable HTTP endpoint on the
@@ -52,6 +54,9 @@ copied into other repositories.
 
 - The repository layer is covered by `npm test`; the API routes and the UI are
   not. Both were verified by hand against a running server, which is weaker.
+- Notes are not events. Adding a note does not record a `task_events` row, so
+  the timeline shows what happened to a task, not what was written about it.
+  The detail view lists both, side by side.
 - `tasks`, `prompts` and `project_handoff` have no `project_id`: Hartask is
   single-project by design, so the `projects` table holds exactly one row. If
   multi-project is ever wanted, that is a schema migration, not a config change.

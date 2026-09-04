@@ -88,6 +88,14 @@ export function getTask(ref: number | string): Task | null {
   return (getDb().prepare(sql).get(ref) as Task | undefined) ?? null;
 }
 
+/**
+ * Resolves a path segment that may be either a public id (TASK-001) or a row
+ * id, so the API route and the detail page accept the same references.
+ */
+export function getTaskByRef(ref: string): Task | null {
+  return getTask(/^\d+$/.test(ref) ? Number(ref) : ref);
+}
+
 /** Counts the active board only; archived tasks are not pending work. */
 export function countTasksByStatus(): Record<TaskStatus, number> {
   const rows = getDb()

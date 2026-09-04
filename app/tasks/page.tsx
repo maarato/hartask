@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { archiveReminderThreshold } from '@/lib/hartask/config';
 import { ensureProject } from '@/lib/hartask/repositories/projects';
 import {
@@ -70,7 +71,10 @@ function TaskCard({ node, depth }: { node: TaskNode; depth: number }) {
             {node.status}
           </span>
           <span className="task-title">
-            {node.public_id} · {node.title}
+            <Link href={`/tasks/${node.public_id}`} className="task-link">
+              {node.public_id}
+            </Link>{' '}
+            · {node.title}
           </span>
           {node.children.length ? (
             <span className="muted small">
@@ -172,7 +176,10 @@ function ArchivedTasks({ tasks }: { tasks: TaskNode[] }) {
               {task.status}
             </span>
             <span className="task-title">
-              {task.public_id} · {task.title}
+              <Link href={`/tasks/${task.public_id}`} className="task-link">
+                {task.public_id}
+              </Link>{' '}
+              · {task.title}
             </span>
             {task.children.length ? (
               <span className="muted small">{task.children.length} subtasks</span>
