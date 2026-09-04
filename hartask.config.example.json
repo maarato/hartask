@@ -1,0 +1,18 @@
+{
+  "port": 43127,
+  "projectRoot": "..",
+  "database": "./data/hartask.sqlite",
+  "projectName": "Current Project",
+  "harnessScan": {
+    "enabled": true,
+    "paths": [
+      "../AGENTS.md",
+      "../CLAUDE.md",
+      "../.agents",
+      "../.claude",
+      "../.cursor",
+      "../.codex",
+      "../docs"
+    ]
+  }
+}

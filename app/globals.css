@@ -1,0 +1,53 @@
+:root { color-scheme: light dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #0b0d10; color: #f5f7fa; }
+a { color: inherit; text-decoration: none; }
+main { max-width: 1180px; margin: 0 auto; padding: 24px; }
+nav { display:flex; gap:12px; margin-bottom:24px; flex-wrap:wrap; }
+nav a { padding:10px 14px; border:1px solid #2a2f37; border-radius:10px; background:#12161b; }
+.grid { display:grid; gap:16px; }
+.grid-2 { grid-template-columns: repeat(auto-fit,minmax(320px,1fr)); }
+.card { border:1px solid #2a2f37; background:#12161b; border-radius:14px; padding:16px; }
+.muted { color:#9aa4b2; }
+.small { font-size:12px; }
+.badge { display:inline-block; padding:3px 8px; border:1px solid #3b4350; border-radius:999px; font-size:12px; }
+.stack { display:flex; flex-direction:column; gap:12px; }
+h1,h2,h3 { margin-top:0; }
+code { background:#171c22; padding:2px 5px; border-radius:6px; }
+
+/* Task status accents — one source of truth for badge and card border. */
+.badge[data-status="READY"] { border-color:#3d6be0; color:#9dbaff; }
+.badge[data-status="IN_PROGRESS"] { border-color:#c98a2b; color:#f0c274; }
+.badge[data-status="BLOCKED"] { border-color:#c0453d; color:#f2938c; }
+.badge[data-status="REVIEW"] { border-color:#8a5cd6; color:#c5a8f5; }
+.badge[data-status="DONE"] { border-color:#2f9e6b; color:#82dcb2; }
+.badge[data-status="CANCELLED"] { border-color:#4a5260; color:#8b93a1; }
+
+.task { margin-bottom:0; }
+.task[data-status="IN_PROGRESS"] { border-left:3px solid #c98a2b; }
+.task[data-status="BLOCKED"] { border-left:3px solid #c0453d; }
+.task[data-status="DONE"] { opacity:.65; }
+.task[data-status="CANCELLED"] { opacity:.5; }
+.task-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.task-head h2 { margin:0; font-size:17px; }
+.task > .task { margin-top:12px; }
+.blocked { color:#f2938c; }
+
+.row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:10px 0 0; }
+.wrap { flex-wrap:wrap; }
+.form { margin-top:12px; }
+input, select, textarea, button {
+  font:inherit; color:inherit; background:#0e1216;
+  border:1px solid #2a2f37; border-radius:8px; padding:8px 10px;
+}
+textarea { resize:vertical; }
+/* Only grow inputs along a horizontal .row; inside a column stack this would
+   stretch flex-basis on the vertical axis and blow up the field height. */
+.row input, .row select, .row textarea { flex:1 1 220px; min-width:0; }
+.form > input, .form > select, .form > textarea { width:100%; }
+button { background:#1b222b; cursor:pointer; white-space:nowrap; }
+button:hover { background:#232c37; }
+summary { cursor:pointer; }
+
+.events { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
+.events li { border-left:2px solid #2a2f37; padding-left:10px; font-size:13px; }
