@@ -551,16 +551,20 @@ The project's AGENTS.md/CLAUDE.md/etc. only needs a short pointer such as:
 ## Hartask
 
 This project uses Hartask for local task/state/project-continuity management.
+It runs in ./hartask/ and answers on http://localhost:43127.
 
-- Use the Hartask MCP server for project context, task state, prompt queue and handoff information.
-- Before substantial work, call hartask_start_session or hartask_get_context.
-- When executing queued work, claim the next prompt first.
-- Record meaningful progress/blockers/completions through Hartask.
-- Before ending meaningful work, update the Hartask handoff.
+- Before substantial work, GET /api/context for the cold-start briefing.
+- Move a task to IN_PROGRESS before working on it and to DONE when finished.
+- Before ending meaningful work, POST /api/handoff with a checkpoint.
 - Never access hartask.sqlite directly.
 ```
 
-See `AGENTS.bootstrap.example.md`.
+See `AGENTS.bootstrap.example.md` for the full version.
+
+The bootstrap must describe the interface that actually exists. Once the MCP
+transport lands, the same pointer becomes a list of `hartask_*` tools; until
+then it names HTTP endpoints, because an agent told about a tool that does not
+exist fails on its first call.
 
 The goal is not to copy the whole methodology into every project instruction file. The bootstrap should simply tell the agent:
 

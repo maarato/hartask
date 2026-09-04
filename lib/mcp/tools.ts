@@ -1,3 +1,8 @@
+/**
+ * Planned MCP tool names, not an implementation. Nothing here is callable yet;
+ * /api/mcp exposes them as `planned_tools` and serves the HTTP interface that
+ * does exist. See lib/hartask/contract.ts.
+ */
 export const hartaskTools = [
   'hartask_get_context',
   'hartask_start_session',

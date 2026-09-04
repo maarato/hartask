@@ -26,21 +26,27 @@ project-specific dev tooling and writes over the HTTP API, which is the same
 path an agent uses; `db:seed` stays generic because Hartask is meant to be
 copied into other repositories.
 
+5. ~~Write an AGENTS.md that points at the interface that exists.~~
+   `AGENTS.bootstrap.example.md` now documents the HTTP API instead of MCP
+   tools that do not exist, the repository has its own `AGENTS.md`, and
+   `lib/hartask/contract.ts` separates the durable rules from what is callable
+   today. `/api/mcp` no longer advertises unimplemented tools.
+
 ## Next
 
-5. Implement the task detail view: description, full note list and the complete
+6. Implement the task detail view: description, full note list and the complete
    event timeline for a single task (the list view only shows the last events
    across the project).
-6. Implement Prompt Stack and the atomic `claim_next_prompt` transaction.
-7. Implement prompt runs.
-8. Replace `/api/mcp` placeholder with a real MCP Streamable HTTP endpoint on the
+7. Implement Prompt Stack and the atomic `claim_next_prompt` transaction.
+8. Implement prompt runs.
+9. Replace `/api/mcp` placeholder with a real MCP Streamable HTTP endpoint on the
    same port.
-9. Expose semantic Hartask MCP tools over the repositories that now exist.
-10. Implement project harness scanner.
-11. Add generated Mermaid diagrams for Summary and Harness.
-12. Add optional adapters/bootstrap injection for AGENTS.md, Claude, Cursor and
+10. Expose semantic Hartask MCP tools over the repositories that now exist.
+11. Implement project harness scanner.
+12. Add generated Mermaid diagrams for Summary and Harness.
+13. Add optional adapters/bootstrap injection for AGENTS.md, Claude, Cursor and
     Codex.
-13. Add Stop/session-end integration where a host supports hooks.
+14. Add Stop/session-end integration where a host supports hooks.
 
 ## Known gaps in the current layer
 
@@ -52,9 +58,6 @@ copied into other repositories.
   of the result set, so a filtered view never hides tasks silently.
 - Status transitions are unconstrained: any status can move to any other. If the
   lifecycle should be enforced, that belongs in the repository, not the UI.
-- `AGENTS.bootstrap.example.md` still describes `hartask_start_session` and
-  `hartask_claim_next_prompt`, which do not exist. Copied as is, it makes an
-  agent fail on the first call. Fixing that is the next task on the board.
 - An agent can only reach Hartask while the dev server is running. A `hartask`
   CLI would remove that dependency for much less work than MCP, and does not
   break the "never touch the database directly" rule, because the CLI is
