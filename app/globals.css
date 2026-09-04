@@ -3,8 +3,22 @@
 body { margin: 0; background: #0b0d10; color: #f5f7fa; }
 a { color: inherit; text-decoration: none; }
 main { max-width: 1180px; margin: 0 auto; padding: 24px; }
-nav { display:flex; gap:12px; margin-bottom:24px; flex-wrap:wrap; }
-nav a { padding:10px 14px; border:1px solid #2a2f37; border-radius:10px; background:#12161b; }
+/* One connected tab bar rather than separate buttons: the active tab is the
+   only one that carries weight and an underline, so the current section reads
+   at a glance instead of having to be picked out of identical pills. */
+.tabs {
+  display:flex; margin-bottom:24px;
+  background:#12161b; border:1px solid #2a2f37; border-radius:14px; padding:6px 6px 0;
+}
+.tab {
+  flex:1; display:flex; justify-content:center;
+  padding:12px 8px 0; color:#9aa4b2; font-size:15px;
+  transition:color .12s ease;
+}
+.tab span { padding-bottom:10px; border-bottom:3px solid transparent; }
+.tab:hover { color:#e4e9f0; }
+.tab[aria-current="page"] { color:#f5f7fa; font-weight:700; }
+.tab[aria-current="page"] span { border-bottom-color:#f5f7fa; }
 .grid { display:grid; gap:16px; }
 .grid-2 { grid-template-columns: repeat(auto-fit,minmax(320px,1fr)); }
 .card { border:1px solid #2a2f37; background:#12161b; border-radius:14px; padding:16px; }

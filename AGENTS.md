@@ -60,10 +60,13 @@ archiving rules. Behaviour asserted in a commit message belongs in a test.
 
 - **Repositories own SQL.** Route handlers and pages call
   `lib/hartask/repositories/*`; they never write queries inline.
-- **Server-rendered, no client JS.** Pages are server components and mutations
-  go through server actions. No `'use client'` has been needed so far —
-  disclosure uses native `<details>`/`<summary>`, including the task cards,
-  which are collapsed by default.
+- **Server-rendered by default.** Pages are server components and mutations go
+  through server actions; disclosure uses native `<details>`/`<summary>`,
+  including the task cards, which are collapsed by default. `components/nav.tsx`
+  is the single `'use client'` component, because a layout does not receive the
+  pathname on the server and the tab bar has to know which tab is active. Reach
+  for a client component only when the server genuinely cannot answer, and say
+  why in the file.
 - **Any page or route that reads the database sets `export const dynamic =
   'force-dynamic'`**, otherwise Next tries to prerender it at build time.
 - **`better-sqlite3` is a native addon** and is listed in

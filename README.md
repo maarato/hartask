@@ -875,6 +875,7 @@ hartask/
 │   ├── layout.tsx
 │   └── page.tsx
 ├── components/
+│   └── nav.tsx
 ├── data/
 ├── docs/
 │   ├── AGENT-SKILLS.md
