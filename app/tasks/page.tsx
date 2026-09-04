@@ -5,62 +5,86 @@ import {
   listTasks,
   listTaskTree
 } from '@/lib/hartask/repositories/tasks';
-import { TASK_STATUSES, type Task, type TaskNode } from '@/lib/hartask/types';
+import { STATUS_ORDER, TASK_STATUSES, type Task, type TaskNode } from '@/lib/hartask/types';
 import { createTaskAction, setNextActionAction, setTaskStatusAction } from './actions';
 
 // The page reads SQLite on every request, so it must never be prerendered.
 export const dynamic = 'force-dynamic';
 
+/** Subtasks that still need work, so a collapsed parent says what it is hiding. */
+function openChildCount(node: TaskNode): number {
+  return node.children.filter((child) => child.status !== 'DONE' && child.status !== 'CANCELLED')
+    .length;
+}
+
+/**
+ * Cards are collapsed by default and use native details/summary, which keeps
+ * the page free of client JS. What stays visible when collapsed is what the
+ * view exists to answer: status, what the task is, and why it is blocked.
+ */
 function TaskCard({ node, depth }: { node: TaskNode; depth: number }) {
+  const open = openChildCount(node);
+
   return (
-    <article className="card task" data-status={node.status} style={{ marginLeft: depth * 24 }}>
-      <header className="task-head">
-        <span className="badge" data-status={node.status}>
-          {node.status}
+    <details className="card task" data-status={node.status} style={{ marginLeft: depth * 20 }}>
+      <summary>
+        <span className="task-head">
+          <span className="badge" data-status={node.status}>
+            {node.status}
+          </span>
+          <span className="task-title">
+            {node.public_id} · {node.title}
+          </span>
+          {node.children.length ? (
+            <span className="muted small">
+              {open ? `${open}/${node.children.length} subtasks abiertas` : `${node.children.length} subtasks`}
+            </span>
+          ) : null}
         </span>
-        <h2>
-          {node.public_id} · {node.title}
-        </h2>
-      </header>
 
-      {node.description ? <p>{node.description}</p> : null}
+        {node.description ? <span className="task-desc muted">{node.description}</span> : null}
 
-      {node.status === 'BLOCKED' && node.blocked_reason ? (
-        <p className="blocked">
-          <strong>Bloqueo:</strong> {node.blocked_reason}
-        </p>
-      ) : null}
+        {node.status === 'BLOCKED' && node.blocked_reason ? (
+          <span className="task-desc blocked">Bloqueo: {node.blocked_reason}</span>
+        ) : null}
+      </summary>
 
-      <form action={setNextActionAction} className="row">
-        <input type="hidden" name="public_id" value={node.public_id} />
-        <input
-          name="next_action"
-          defaultValue={node.next_action ?? ''}
-          placeholder="Siguiente acción"
-          aria-label={`Siguiente acción de ${node.public_id}`}
-        />
-        <button type="submit">Guardar</button>
-      </form>
+      <div className="task-body">
+        <form action={setNextActionAction} className="row">
+          <input type="hidden" name="public_id" value={node.public_id} />
+          <input
+            name="next_action"
+            defaultValue={node.next_action ?? ''}
+            placeholder="Siguiente acción"
+            aria-label={`Siguiente acción de ${node.public_id}`}
+          />
+          <button type="submit">Guardar</button>
+        </form>
 
-      <form action={setTaskStatusAction} className="row">
-        <input type="hidden" name="public_id" value={node.public_id} />
-        <select name="status" defaultValue={node.status} aria-label={`Estado de ${node.public_id}`}>
-          {TASK_STATUSES.map((status) => (
-            <option key={status} value={status}>
-              {status}
-            </option>
-          ))}
-        </select>
-        <input name="blocked_reason" placeholder="Motivo (si BLOCKED)" />
-        <button type="submit">Cambiar estado</button>
-      </form>
+        <form action={setTaskStatusAction} className="row">
+          <input type="hidden" name="public_id" value={node.public_id} />
+          <select
+            name="status"
+            defaultValue={node.status}
+            aria-label={`Estado de ${node.public_id}`}
+          >
+            {TASK_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+          <input name="blocked_reason" placeholder="Motivo (si BLOCKED)" />
+          <button type="submit">Cambiar estado</button>
+        </form>
 
-      <p className="muted small">Actualizada: {node.updated_at}</p>
+        <p className="muted small">Actualizada: {node.updated_at}</p>
 
-      {node.children.map((child) => (
-        <TaskCard key={child.id} node={child} depth={depth + 1} />
-      ))}
-    </article>
+        {node.children.map((child) => (
+          <TaskCard key={child.id} node={child} depth={depth + 1} />
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -113,7 +137,7 @@ export default function TasksPage() {
       </div>
 
       <div className="row wrap">
-        {TASK_STATUSES.filter((status) => counts[status]).map((status) => (
+        {STATUS_ORDER.filter((status) => counts[status]).map((status) => (
           <span key={status} className="badge" data-status={status}>
             {status} · {counts[status]}
           </span>

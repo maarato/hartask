@@ -1,6 +1,7 @@
 import { getDb } from '@/lib/db/client';
 import {
   CLOSED_STATUSES,
+  STATUS_ORDER,
   type Task,
   type TaskEvent,
   type TaskNode,
@@ -12,13 +13,22 @@ import {
 // Reads
 // ---------------------------------------------------------------------------
 
+/**
+ * Ranks rows by STATUS_ORDER so actionable work floats and closed work sinks.
+ * Interpolation is safe here: the values come from a typed constant, never
+ * from a request.
+ */
+const STATUS_RANK_SQL = `CASE status ${STATUS_ORDER.map(
+  (status, index) => `WHEN '${status}' THEN ${index}`
+).join(' ')} ELSE ${STATUS_ORDER.length} END`;
+
 export type ListTasksFilter = {
   status?: TaskStatus[];
   parentId?: number | null;
   includeClosed?: boolean;
 };
 
-/** Flat list, ordered the way the UI reads it: highest priority, then oldest. */
+/** Flat list, ordered by STATUS_ORDER, then priority, then oldest first. */
 export function listTasks(filter: ListTasksFilter = {}): Task[] {
   const where: string[] = [];
   const params: unknown[] = [];
@@ -39,7 +49,7 @@ export function listTasks(filter: ListTasksFilter = {}): Task[] {
   const sql = `
     SELECT * FROM tasks
     ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-    ORDER BY priority DESC, id ASC
+    ORDER BY ${STATUS_RANK_SQL}, priority DESC, id ASC
   `;
 
   return getDb().prepare(sql).all(...params) as Task[];

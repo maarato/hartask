@@ -48,7 +48,9 @@ Both must pass. There are no tests yet — adding them to the repository layer i
 - **Repositories own SQL.** Route handlers and pages call
   `lib/hartask/repositories/*`; they never write queries inline.
 - **Server-rendered, no client JS.** Pages are server components and mutations
-  go through server actions. No `'use client'` has been needed so far.
+  go through server actions. No `'use client'` has been needed so far —
+  disclosure uses native `<details>`/`<summary>`, including the task cards,
+  which are collapsed by default.
 - **Any page or route that reads the database sets `export const dynamic =
   'force-dynamic'`**, otherwise Next tries to prerender it at build time.
 - **`better-sqlite3` is a native addon** and is listed in

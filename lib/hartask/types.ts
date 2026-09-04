@@ -84,3 +84,18 @@ export type HandoffView = Omit<Handoff, 'important_files_json'> & {
   important_files: string[];
   current_task: Task | null;
 };
+
+/**
+ * Board order: work that can be picked up comes first, closed work last.
+ * Kept next to TASK_STATUSES so the ranking has one source of truth, and used
+ * by the task repository so the API and the UI agree on the same order.
+ */
+export const STATUS_ORDER: readonly TaskStatus[] = [
+  'READY',
+  'IN_PROGRESS',
+  'BLOCKED',
+  'REVIEW',
+  'BACKLOG',
+  'CANCELLED',
+  'DONE'
+];
