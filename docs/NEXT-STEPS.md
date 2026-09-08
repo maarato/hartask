@@ -77,3 +77,31 @@ copied into other repositories.
   CLI would remove that dependency for much less work than MCP, and does not
   break the "never touch the database directly" rule, because the CLI is
   Hartask.
+
+## Sync
+
+Bidirectional sync between two Hartask instances. The remote peer is another
+Hartask, not a raw database: the merge engine then runs unchanged on each side
+against its own SQLite, and a database in the cloud with nothing in front of it
+would give you nothing to look at anyway.
+
+- Identity is `uuid` + `origin` + a Lamport counter per row. Ordering does not
+  use wall clocks, which would let a machine with a fast clock win every
+  conflict.
+- Only tasks can conflict. Notes, events and handoffs are append-only, and
+  nothing is ever deleted, so there are no tombstones.
+- Conflicts are last-write-wins per row, not per field. Two origins editing
+  different fields of one task keep one version; the other is recorded as a
+  `SYNC_CONFLICT` event so nothing is lost silently.
+- `public_id` is a label, not a global id. After pairing each origin mints in
+  its own prefixed range. Tasks created before two origins ever met can carry
+  different labels on each side, because renaming an existing task would break
+  every reference to it. The uuid always agrees, and `getTaskByRef` takes
+  either.
+- Exporting marks rows as agreed before the peer has accepted them. If A's
+  version beats B's and B receives it later, B applies it without flagging a
+  conflict. Detecting that needs version vectors rather than one clock per row.
+  Convergence is unaffected.
+- Every exchange sends the full changeset. Resending is idempotent, so this is
+  correct but not minimal; a per-peer cursor would trade that for state that
+  has to stay right across failed exchanges.

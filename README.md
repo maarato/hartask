@@ -992,6 +992,11 @@ Working end to end:
 - `GET/POST /api/tasks` and `GET/PATCH /api/tasks/[id]` (accepts `TASK-001` or a
   numeric id) with request validation;
 - `GET/POST /api/handoff` accepting the checkpoint payload documented above;
+- bidirectional sync with another Hartask instance: every synced row carries a
+  uuid, its origin and a Lamport counter, conflicts resolve last-write-wins per
+  row and the discarded version is written to the task's history rather than
+  dropped. `POST /api/sync` is one full exchange, closed unless a shared secret
+  is configured;
 - `GET /api/context` returning real project, current task, counts, events and
   the current handoff — the cold-start briefing an agent reads;
 - database initialization and seed scripts;
@@ -1038,9 +1043,7 @@ The starter intentionally leaves these as the next development phase:
 
 Hartask V1 should **not** initially add:
 
-- authentication;
 - multi-user accounts;
-- cloud hosting;
 - Redis;
 - PostgreSQL;
 - vector databases/RAG;
@@ -1081,7 +1084,12 @@ This sequence makes Hartask useful to the human early, then useful to the agent,
 
 # Design principles
 
-1. **Local-first** — Hartask belongs to one project and runs locally.
+1. **Local-first, with optional peers** — Hartask belongs to one project and
+   runs locally. Its database is the source of truth and it works with no
+   network at all. Since bidirectional sync was added it can also exchange
+   state with another Hartask instance, so a board can be read and added to
+   from somewhere other than the project's machine. Sync is off unless a URL
+   and a shared secret are configured.
 2. **Single server** — one process and one five-digit port where practical.
 3. **SQLite-first** — no external persistence required.
 4. **Human and agent share state** — UI and MCP operate over the same core.

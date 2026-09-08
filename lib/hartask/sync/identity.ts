@@ -66,6 +66,10 @@ export function registerOrigin(id: string, label: string): SyncOrigin {
     ).run(id, label, prefixFor(id));
   }
 
+  // Of the two, the larger uuid yields the bare TASK-NNN range for tasks it
+  // creates from now on. Tasks that already exist keep their labels: renaming
+  // them would break every reference in notes, handoffs and the user's memory,
+  // which is a worse failure than two peers labelling one task differently.
   if (local.public_id_prefix === '' && local.id > id) {
     db.prepare(`UPDATE sync_origins SET public_id_prefix = ? WHERE id = ?`).run(
       prefixFor(local.id),

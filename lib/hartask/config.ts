@@ -8,6 +8,14 @@ export type HartaskConfig = {
   projectName: string;
   /** Archivable root tasks tolerated before the board suggests archiving. */
   archiveReminderThreshold: number;
+  /** Hartask instance to sync with, e.g. https://hartask.example.com */
+  syncUrl: string;
+  /**
+   * Shared secret both peers must present. Sync is closed unless it is set:
+   * an open endpoint would hand the project's board to anyone who finds the
+   * URL. Never returned by the API and never rendered in the UI.
+   */
+  syncToken: string;
   harnessScan: { enabled: boolean; paths: string[] };
 };
 
@@ -17,6 +25,8 @@ export const DEFAULT_CONFIG: HartaskConfig = {
   database: './data/hartask.sqlite',
   projectName: 'Current Project',
   archiveReminderThreshold: 15,
+  syncUrl: '',
+  syncToken: '',
   harnessScan: { enabled: true, paths: [] }
 };
 
@@ -29,7 +39,9 @@ export const DEFAULT_CONFIG: HartaskConfig = {
 export const ENV_KEYS = {
   database: 'HARTASK_DATABASE',
   projectName: 'HARTASK_PROJECT_NAME',
-  archiveReminderThreshold: 'HARTASK_ARCHIVE_REMINDER_THRESHOLD'
+  archiveReminderThreshold: 'HARTASK_ARCHIVE_REMINDER_THRESHOLD',
+  syncUrl: 'HARTASK_SYNC_URL',
+  syncToken: 'HARTASK_SYNC_TOKEN'
 } as const;
 
 export type EnvBackedKey = keyof typeof ENV_KEYS;
@@ -89,7 +101,9 @@ export function loadConfig(): HartaskConfig {
     archiveReminderThreshold: readNumberEnv(
       ENV_KEYS.archiveReminderThreshold,
       merged.archiveReminderThreshold
-    )
+    ),
+    syncUrl: process.env[ENV_KEYS.syncUrl] || merged.syncUrl,
+    syncToken: process.env[ENV_KEYS.syncToken] || merged.syncToken
   };
   return cached;
 }
@@ -116,4 +130,9 @@ export function projectRootPath(): string {
 
 export function archiveReminderThreshold(): number {
   return loadConfig().archiveReminderThreshold;
+}
+
+export function syncSettings(): { url: string; token: string } {
+  const config = loadConfig();
+  return { url: config.syncUrl.trim(), token: config.syncToken.trim() };
 }

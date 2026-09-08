@@ -44,6 +44,11 @@ another database — which is how the tests get an isolated one —
 board tolerates before it suggests archiving, and `HARTASK_CONFIG` points at a
 different config file — which is how the tests avoid writing the project's own.
 
+`HARTASK_SYNC_URL` and `HARTASK_SYNC_TOKEN` configure sync with another
+Hartask instance. Sync is closed unless the secret is set, and the token is
+never returned by the API or rendered in the UI — when adding a setting, decide
+whether it is a secret before it reaches a page.
+
 `/settings` writes the config file. Only settings that take effect immediately
 are editable there; anything read at boot stays read-only. When adding a
 setting, decide which of the two it is, and remember that an environment

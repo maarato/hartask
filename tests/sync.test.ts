@@ -196,6 +196,32 @@ describe('public ids', () => {
     expect(renumbered).toBeDefined();
   });
 
+  it('agrees on identity even when pre-pairing labels differ', () => {
+    // Each side had independent work before they ever met, so both used
+    // TASK-001 for a different task.
+    on(laptop, () => createTask({ title: 'laptop task' }));
+    on(cloud, () => createTask({ title: 'cloud task' }));
+
+    sync(laptop, cloud);
+    sync(cloud, laptop);
+    sync(laptop, cloud);
+
+    const byUuid = (peer: Peer) =>
+      Object.fromEntries(on(peer, () => listTasks()).map((t) => [t.uuid, t.title]));
+
+    // The uuid is the identity and always agrees. The label may not: renaming
+    // a task that already exists would break every reference to it, so the
+    // side that owns a pre-pairing id keeps it.
+    expect(byUuid(laptop)).toEqual(byUuid(cloud));
+    expect(Object.keys(byUuid(laptop))).toHaveLength(2);
+
+    // Within one peer, labels are still unique — nothing is ambiguous locally.
+    for (const peer of [laptop, cloud]) {
+      const ids = on(peer, () => listTasks().map((t) => t.public_id));
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+
   it('stops the two origins minting from the same range once they are paired', () => {
     on(laptop, () => createTask({ title: 'laptop task' }));
     sync(laptop, cloud);

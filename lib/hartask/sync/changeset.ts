@@ -116,9 +116,12 @@ export function exportChangeset(since = 0): Changeset {
  * both mint TASK-001. When an incoming id is already taken by a different task,
  * the arriving one is relabelled into a free local slot.
  *
- * public_id travels as an ordinary field, so the new label propagates back on
- * the next sync and both sides converge on it. The uuid never changes, so
- * nothing that points at the task by identity is affected.
+ * Only tasks created before the two origins ever met can collide; after
+ * pairing each origin mints in its own prefixed range. Those pre-pairing ids
+ * are not renamed on the side that owns them, because renaming would break
+ * every reference to them, so the two peers can end up showing different
+ * labels for one task. The uuid is the identity that always agrees, and
+ * getTaskByRef accepts either — public_id is a label, not a global id.
  */
 function publicIdFor(incoming: TaskRow): string {
   const db = getDb();

@@ -20,7 +20,12 @@ import {
  * project root are read at boot, so offering them here would let someone save
  * a change that silently does nothing until a restart.
  */
-export const EDITABLE_KEYS = ['projectName', 'archiveReminderThreshold'] as const;
+export const EDITABLE_KEYS = [
+  'projectName',
+  'archiveReminderThreshold',
+  'syncUrl',
+  'syncToken'
+] as const;
 export type EditableKey = (typeof EDITABLE_KEYS)[number];
 
 export type SettingView = {
@@ -28,6 +33,8 @@ export type SettingView = {
   label: string;
   value: string | number;
   editable: boolean;
+  /** A secret: settable, never read back. The value is replaced by a marker. */
+  secret?: boolean;
   /** Present when an environment variable is winning over the stored value. */
   override: { name: string; value: string } | null;
   note?: string;
@@ -36,6 +43,8 @@ export type SettingView = {
 const LABELS: Record<keyof HartaskConfig, string> = {
   projectName: 'Nombre del proyecto',
   archiveReminderThreshold: 'Umbral de recordatorio de archivado',
+  syncUrl: 'Hartask remoto con el que sincronizar',
+  syncToken: 'Secreto compartido de sincronización',
   port: 'Puerto',
   database: 'Base de datos',
   projectRoot: 'Raíz del proyecto',
@@ -56,8 +65,10 @@ export function listSettings(): SettingView[] {
   const editable: SettingView[] = EDITABLE_KEYS.map((key) => ({
     key,
     label: LABELS[key],
-    value: config[key],
+    // A secret is reported as configured or not, never handed back.
+    value: key === 'syncToken' ? (config.syncToken ? 'configurado' : 'sin configurar') : config[key],
     editable: true,
+    secret: key === 'syncToken',
     override: overrideFor(key)
   }));
 
@@ -85,6 +96,10 @@ export function saveSettings(patch: SettingsPatch): HartaskConfig {
   const next: Partial<HartaskConfig> = { ...stored };
 
   if (patch.projectName !== undefined) next.projectName = patch.projectName;
+  if (patch.syncUrl !== undefined) next.syncUrl = patch.syncUrl;
+  // An empty submission leaves the stored secret alone, so saving the rest of
+  // the form does not wipe a token the page never showed.
+  if (patch.syncToken) next.syncToken = patch.syncToken;
   if (patch.archiveReminderThreshold !== undefined) {
     const threshold = Math.trunc(patch.archiveReminderThreshold);
     if (!Number.isFinite(threshold) || threshold < 0) {

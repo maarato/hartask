@@ -17,6 +17,7 @@ beforeEach(() => {
   if (existsSync(configPath())) rmSync(configPath());
   delete process.env.HARTASK_PROJECT_NAME;
   delete process.env.HARTASK_ARCHIVE_REMINDER_THRESHOLD;
+  delete process.env.HARTASK_SYNC_TOKEN;
   resetConfigCache();
 });
 
@@ -100,6 +101,16 @@ describe('saveSettings', () => {
     expect(storedFile().archiveReminderThreshold).toBe(7);
   });
 
+  it('leaves the stored secret alone when the field is submitted empty', () => {
+    saveSettings({ syncToken: 'a-shared-secret' });
+    // The page never shows the token, so saving the rest of the form must not
+    // wipe it with the empty value it renders.
+    saveSettings({ syncUrl: 'https://hartask.example.com', syncToken: '' });
+
+    expect(storedFile().syncToken).toBe('a-shared-secret');
+    expect(storedFile().syncUrl).toBe('https://hartask.example.com');
+  });
+
   it('rejects a negative threshold', () => {
     expect(() => saveSettings({ archiveReminderThreshold: -1 })).toThrow(/non-negative/i);
   });
@@ -115,8 +126,22 @@ describe('listSettings', () => {
     const editable = settings.filter((setting) => setting.editable).map((setting) => setting.key);
     const readOnly = settings.filter((setting) => !setting.editable).map((setting) => setting.key);
 
-    expect(editable).toEqual(['projectName', 'archiveReminderThreshold']);
+    expect(editable).toEqual([
+      'projectName',
+      'archiveReminderThreshold',
+      'syncUrl',
+      'syncToken'
+    ]);
     expect(readOnly).toEqual(['port', 'database', 'projectRoot']);
+  });
+
+  it('never hands back the sync token, only whether one is set', () => {
+    saveSettings({ syncToken: 'a-shared-secret' });
+
+    const view = listSettings().find((setting) => setting.key === 'syncToken');
+    expect(view?.secret).toBe(true);
+    expect(view?.value).toBe('configurado');
+    expect(JSON.stringify(listSettings())).not.toContain('a-shared-secret');
   });
 
   it('reports the environment variable that is winning, so the page can warn', () => {

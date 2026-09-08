@@ -1,6 +1,7 @@
-import { configPath } from '@/lib/hartask/config';
+import { configPath, syncSettings } from '@/lib/hartask/config';
 import { listSettings, type SettingView } from '@/lib/hartask/settings';
-import { saveSettingsAction } from './actions';
+import { listOrigins } from '@/lib/hartask/sync/identity';
+import { saveSettingsAction, syncNowAction } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +40,11 @@ export default function SettingsPage() {
   const byKey = new Map(settings.map((setting) => [setting.key, setting]));
   const projectName = byKey.get('projectName')!;
   const threshold = byKey.get('archiveReminderThreshold')!;
+  const sync = byKey.get('syncUrl')!;
+  const token = byKey.get('syncToken')!;
   const readOnly = settings.filter((setting) => !setting.editable);
+  const remote = syncSettings();
+  const origins = listOrigins();
 
   return (
     <section className="stack sections">
@@ -73,8 +78,68 @@ export default function SettingsPage() {
             {threshold.override ? <OverrideWarning override={threshold.override} /> : null}
           </label>
 
+          <label className="stack field">
+            <span>{sync.label}</span>
+            <input
+              name="syncUrl"
+              type="url"
+              defaultValue={String(sync.value)}
+              placeholder="https://hartask.example.com"
+            />
+            <span className="muted small">
+              El remoto es otra instancia de Hartask, no una base suelta.
+            </span>
+            {sync.override ? <OverrideWarning override={sync.override} /> : null}
+          </label>
+
+          <label className="stack field">
+            <span>{token.label}</span>
+            <input
+              name="syncToken"
+              type="password"
+              placeholder={
+                remote.token ? 'Configurado — escribe uno nuevo para reemplazarlo' : 'Sin configurar'
+              }
+              autoComplete="new-password"
+            />
+            <span className="muted small">
+              Ambos lados deben usar el mismo secreto. Sin él la sincronización queda cerrada. No se
+              muestra nunca; dejarlo vacío conserva el actual.
+            </span>
+            {token.override ? <OverrideWarning override={token.override} /> : null}
+          </label>
+
           <button type="submit">Guardar</button>
         </form>
+      </article>
+
+      <article className="card stack">
+        <header className="section-head">
+          <h2>Sincronización</h2>
+          <p className="muted small">
+            {remote.url && remote.token
+              ? `Lista contra ${remote.url}`
+              : 'Falta la URL o el secreto.'}
+          </p>
+        </header>
+
+        <dl className="handoff">
+          {origins.map((origin) => (
+            <div key={origin.id} style={{ display: 'contents' }}>
+              <dt>{origin.is_local ? 'Este origen' : origin.label}</dt>
+              <dd>
+                reloj {origin.lamport} · ids{' '}
+                <code>TASK-{origin.public_id_prefix}NNN</code>
+              </dd>
+            </div>
+          ))}
+        </dl>
+
+        {remote.url && remote.token ? (
+          <form action={syncNowAction}>
+            <button type="submit">Sincronizar ahora</button>
+          </form>
+        ) : null}
       </article>
 
       <article className="card stack">
