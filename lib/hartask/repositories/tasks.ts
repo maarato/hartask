@@ -425,17 +425,40 @@ export function unarchiveTask(ref: number | string, agentId?: string | null): Ta
   return run();
 }
 
-/** Root tasks currently eligible for archiving, used by the board reminder. */
-export function listArchivableRoots(): Task[] {
+/**
+ * Root tasks currently eligible for archiving, used by the board reminder.
+ *
+ * `statuses` narrows the set. DONE and BACKLOG are archivable for different
+ * reasons — one is finished, the other was never started — so archiving them
+ * is not always the same decision, and the caller says which it means.
+ */
+export function listArchivableRoots(statuses: TaskStatus[] = ARCHIVABLE_STATUSES): Task[] {
+  // An empty selection means nothing was chosen, never "everything": the SQL
+  // below would otherwise be `IN ()`, and a bulk archive is the wrong place to
+  // guess.
+  if (!statuses.length) return [];
+  const eligible = statuses.filter((status) => isArchivable(status));
+  if (!eligible.length) return [];
+
   return getDb()
     .prepare(
       `SELECT * FROM tasks
        WHERE parent_id IS NULL
          AND archived_at IS NULL
-         AND status IN (${ARCHIVABLE_STATUSES.map(() => '?').join(',')})
+         AND status IN (${eligible.map(() => '?').join(',')})
        ORDER BY ${STATUS_RANK_SQL}, priority DESC, id ASC`
     )
-    .all(...ARCHIVABLE_STATUSES) as Task[];
+    .all(...eligible) as Task[];
+}
+
+/** How many archivable roots sit in each status, so a chooser can say so. */
+export function countArchivableRootsByStatus(): Record<TaskStatus, number> {
+  const counts = Object.fromEntries(
+    ARCHIVABLE_STATUSES.map((status) => [status, 0])
+  ) as Record<TaskStatus, number>;
+
+  for (const task of listArchivableRoots()) counts[task.status] += 1;
+  return counts;
 }
 
 export function countArchivableRoots(): number {
@@ -456,10 +479,13 @@ export function countArchivableRoots(): number {
  * Per-task events are kept on purpose: each task really was archived, and a
  * single bulk event would leave those tasks with no record of it.
  */
-export function archiveAllArchivable(agentId?: string | null): Task[] {
+export function archiveAllArchivable(
+  agentId?: string | null,
+  statuses: TaskStatus[] = ARCHIVABLE_STATUSES
+): Task[] {
   const db = getDb();
   const run = db.transaction((): Task[] =>
-    listArchivableRoots().map((task) => archiveTask(task.id, agentId))
+    listArchivableRoots(statuses).map((task) => archiveTask(task.id, agentId))
   );
   return run();
 }

@@ -3,6 +3,7 @@ import { archiveReminderThreshold, autoArchiveEnabled } from '@/lib/hartask/conf
 import { ensureProject } from '@/lib/hartask/repositories/projects';
 import {
   countArchivableRoots,
+  countArchivableRootsByStatus,
   countTasksByStatus,
   listEvents,
   listTasks,
@@ -13,7 +14,8 @@ import {
   STATUS_ORDER,
   TASK_STATUSES,
   type Task,
-  type TaskNode
+  type TaskNode,
+  type TaskStatus
 } from '@/lib/hartask/types';
 import {
   archiveAllArchivableAction,
@@ -152,30 +154,80 @@ function TaskCard({ node, depth }: { node: TaskNode; depth: number }) {
  */
 function ArchiveReminder({
   count,
+  counts,
   threshold,
   auto
 }: {
   count: number;
+  counts: Record<TaskStatus, number>;
   threshold: number;
   auto: boolean;
 }) {
   return (
-    <form action={archiveAllArchivableAction} className="card notice">
-      <span>
-        <strong>{count} tasks archivables</strong> en el board (DONE o BACKLOG, más de{' '}
-        {threshold}). Archivarlas las saca de la vista sin borrarlas; siguen en{' '}
-        <em>Archivadas</em>.
-        {auto ? (
-          // Auto-archive runs after a mutation, so a board can sit over the
-          // threshold until the next change. Saying so beats looking broken.
-          <div className="muted small">
-            El archivado automático está activo: esto se resolverá solo en el próximo cambio, o
-            puedes hacerlo ahora.
+    <>
+      <div className="card notice">
+        <span>
+          <strong>{count} tasks archivables</strong> en el board (DONE o BACKLOG, más de{' '}
+          {threshold}). Archivarlas las saca de la vista sin borrarlas; siguen en{' '}
+          <em>Archivadas</em>.
+          {auto ? (
+            // Auto-archive runs after a mutation, so a board can sit over the
+            // threshold until the next change. Saying so beats looking broken.
+            <div className="muted small">
+              El archivado automático está activo: esto se resolverá solo en el próximo cambio, o
+              puedes hacerlo ahora.
+            </div>
+          ) : null}
+        </span>
+        <button type="button" popoverTarget="archive-all">
+          Archivar todo
+        </button>
+      </div>
+
+      {/* The native popover attribute, so a modal does not cost a client
+          component. It opens in the top layer with its own backdrop, and Esc
+          or a click outside dismisses it. */}
+      <div id="archive-all" popover="auto" className="card stack modal">
+        <header className="section-head">
+          <h2>Archivar tasks</h2>
+          <p className="muted small">
+            Elige qué archivar. Nada se borra: las tasks siguen en <em>Archivadas</em> y se pueden
+            devolver al board.
+          </p>
+        </header>
+
+        <form action={archiveAllArchivableAction} className="stack">
+          {/* DONE is checked and BACKLOG is not, because finished work is the
+              expected thing to clear away, while a BACKLOG task was never
+              started and archiving it is a decision, not tidying up. */}
+          <label className="row checkbox">
+            <input type="checkbox" name="status_DONE" defaultChecked />
+            <span>
+              Terminadas <span className="badge" data-status="DONE">DONE</span>{' '}
+              <span className="muted">· {counts.DONE ?? 0}</span>
+            </span>
+          </label>
+
+          <label className="row checkbox">
+            <input type="checkbox" name="status_BACKLOG" />
+            <span>
+              Sin empezar <span className="badge" data-status="BACKLOG">BACKLOG</span>{' '}
+              <span className="muted">· {counts.BACKLOG ?? 0}</span>
+              <div className="muted small">
+                Nunca se trabajaron. Archivarlas las saca de la vista, no las descarta.
+              </div>
+            </span>
+          </label>
+
+          <div className="row">
+            <button type="submit">Archivar</button>
+            <button type="button" popoverTarget="archive-all" popoverTargetAction="hide">
+              Cancelar
+            </button>
           </div>
-        ) : null}
-      </span>
-      <button type="submit">Archivar todo</button>
-    </form>
+        </form>
+      </div>
+    </>
   );
 }
 
@@ -261,6 +313,7 @@ export default function TasksPage() {
   const counts = countTasksByStatus();
   const events = listEvents({ limit: 8 });
   const archivable = countArchivableRoots();
+  const archivableByStatus = countArchivableRootsByStatus();
   const threshold = archiveReminderThreshold();
 
   return (
@@ -280,7 +333,12 @@ export default function TasksPage() {
       </div>
 
       {archivable > threshold ? (
-        <ArchiveReminder count={archivable} threshold={threshold} auto={autoArchiveEnabled()} />
+        <ArchiveReminder
+          count={archivable}
+          counts={archivableByStatus}
+          threshold={threshold}
+          auto={autoArchiveEnabled()}
+        />
       ) : null}
 
       <NewTaskForm parents={flat} />

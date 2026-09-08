@@ -999,7 +999,11 @@ Working end to end:
 - archiving for root tasks in DONE or BACKLOG, cascading to their subtasks and
   reversible from an "Archivadas" section, with a reminder and a bulk
   "archive all" once archivable work passes a configurable threshold, plus an
-  opt-in that does it without being asked;
+  opt-in that does it without being asked. The bulk archive asks which statuses
+  it should take — DONE is offered checked and BACKLOG is not, because finished
+  work is tidying up and unstarted work is a decision — through a modal built on
+  the native `popover` attribute, so the confirmation costs no client
+  JavaScript;
 - Summary view backed by SQLite: editable Project Context plus the last
   handoff, answering the cold-start questions;
 - Mermaid diagrams: Summary draws any ```mermaid block in the Project Context,

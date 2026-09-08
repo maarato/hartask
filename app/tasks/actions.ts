@@ -12,7 +12,7 @@ import {
   unarchiveTask,
   updateTask
 } from '@/lib/hartask/repositories/tasks';
-import { isTaskStatus } from '@/lib/hartask/types';
+import { ARCHIVABLE_STATUSES, isTaskStatus, type TaskStatus } from '@/lib/hartask/types';
 
 function text(formData: FormData, field: string): string | null {
   const value = formData.get(field);
@@ -135,8 +135,20 @@ export async function unarchiveTaskAction(formData: FormData): Promise<void> {
   revalidateTasks();
 }
 
-export async function archiveAllArchivableAction(): Promise<void> {
-  archiveAllArchivable();
+/**
+ * DONE and BACKLOG are archivable for different reasons, so the button asks
+ * which before it fires. An unchecked box sends nothing, and nothing means
+ * nothing: an empty selection archives no tasks rather than falling back to
+ * all of them, which is the failure mode that would actually cost work.
+ */
+export async function archiveAllArchivableAction(formData: FormData): Promise<void> {
+  const chosen = ARCHIVABLE_STATUSES.filter(
+    (status) => formData.get(`status_${status}`) === 'on'
+  ) as TaskStatus[];
+
+  if (!chosen.length) return;
+
+  archiveAllArchivable(null, chosen);
 
   revalidateTasks();
 }

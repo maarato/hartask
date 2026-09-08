@@ -3,6 +3,7 @@ import {
   archiveAllArchivable,
   archiveTask,
   countArchivableRoots,
+  countArchivableRootsByStatus,
   countTasksByStatus,
   createTask,
   getCurrentTask,
@@ -250,5 +251,49 @@ describe('archiveAllArchivable', () => {
       (event) => event.event_type === 'TASK_ARCHIVED'
     );
     expect(archivedEvents).toHaveLength(2);
+  });
+
+  it('archives only the statuses it was asked for', () => {
+    createTask({ title: 'done', status: 'DONE' });
+    const backlog = createTask({ title: 'backlog', status: 'BACKLOG' });
+
+    const archived = archiveAllArchivable(null, ['DONE']);
+
+    expect(archived.map((task) => task.status)).toEqual(['DONE']);
+    expect(listTasks().map((task) => task.id)).toEqual([backlog.id]);
+  });
+
+  // The failure that would actually cost work: an empty selection is nothing
+  // chosen, and must never be read as everything.
+  it('archives nothing when no status was chosen', () => {
+    createTask({ title: 'done', status: 'DONE' });
+    createTask({ title: 'backlog', status: 'BACKLOG' });
+
+    expect(archiveAllArchivable(null, [])).toHaveLength(0);
+    expect(countArchivableRoots()).toBe(2);
+  });
+
+  it('ignores a status that is not archivable in the first place', () => {
+    createTask({ title: 'ready', status: 'READY' });
+
+    expect(archiveAllArchivable(null, ['READY'])).toHaveLength(0);
+    expect(listTasks()).toHaveLength(1);
+  });
+});
+
+describe('countArchivableRootsByStatus', () => {
+  it('breaks the count down so the chooser can say what it would archive', () => {
+    createTask({ title: 'done one', status: 'DONE' });
+    createTask({ title: 'done two', status: 'DONE' });
+    createTask({ title: 'backlog', status: 'BACKLOG' });
+    createTask({ title: 'ready', status: 'READY' });
+
+    expect(countArchivableRootsByStatus()).toEqual({ DONE: 2, BACKLOG: 1 });
+  });
+
+  it('reports zero rather than omitting a status with nothing in it', () => {
+    createTask({ title: 'done', status: 'DONE' });
+
+    expect(countArchivableRootsByStatus()).toEqual({ DONE: 1, BACKLOG: 0 });
   });
 });

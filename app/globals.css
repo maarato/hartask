@@ -168,3 +168,18 @@ summary { cursor:pointer; }
   width:8px; height:8px; border-radius:50%; background:#3b4350;
 }
 .timeline-head { margin:0; gap:8px; }
+
+/* Approval modal, using the native popover attribute so it costs no client
+   component. The centring is explicit because the top layer has no flow. */
+.modal {
+  margin:auto; max-width:520px; width:calc(100% - 32px);
+  border:1px solid #2a323d; background:#12161b; color:#e6e9ee;
+}
+/* The browser hides a closed popover with `display:none`, but that is a user
+   agent rule and `.stack` sets `display:flex` here, which beats it — so the
+   dialog would sit open on the page forever. Hiding the closed state has to be
+   said in the author stylesheet. A browser without :popover-open drops this
+   rule and shows the form inline, which is the harmless way to be wrong. */
+.modal:not(:popover-open) { display:none; }
+.modal::backdrop { background:rgba(8, 10, 13, 0.66); }
+.modal .row { justify-content:flex-end; }
