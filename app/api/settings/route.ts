@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
-import { configPath, loadConfig } from '@/lib/hartask/config';
+import { configPath } from '@/lib/hartask/config';
 import { renameProject } from '@/lib/hartask/repositories/projects';
-import { EDITABLE_KEYS, listSettings, saveSettings } from '@/lib/hartask/settings';
+import { EDITABLE_KEYS, listSettings, redactedConfig, saveSettings } from '@/lib/hartask/settings';
 
 export const dynamic = 'force-dynamic';
 
 /** An agent should be able to read the effective configuration, not just the human. */
 export async function GET() {
   return NextResponse.json({
-    config: loadConfig(),
+    // Redacted: an agent needs to know whether a secret is set, not what it is.
+    config: redactedConfig(),
     settings: listSettings(),
     config_path: configPath(),
     resolution: 'environment variable, then hartask.config.json, then defaults'

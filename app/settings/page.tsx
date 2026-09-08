@@ -10,16 +10,17 @@ export const metadata = { title: 'Configuración · Hartask' };
 
 /**
  * An environment variable beats the file, so a value that is overridden would
- * save and appear to do nothing. The page says so next to the field rather
- * than letting the user discover it by being confused.
+ * save and appear to do nothing. The page still says so, because silently
+ * ignoring what someone typed is worse than a note — but it says it quietly
+ * and without echoing the value back: this page renders a sync token, and a
+ * value printed to be helpful is a value that leaks.
  */
-function OverrideWarning({ override }: { override: NonNullable<SettingView['override']> }) {
+function OverrideNote({ override }: { override: NonNullable<SettingView['override']> }) {
   return (
-    <p className="blocked small">
-      <code>{override.name}</code> está definida como <code>{override.value}</code> y gana sobre el
-      archivo. Lo que guardes aquí queda escrito, pero no tendrá efecto mientras esa variable siga
-      puesta.
-    </p>
+    <span className="muted small">
+      Viene de <code>{override.name}</code>. Lo que guardes aquí queda escrito, pero no tendrá
+      efecto mientras esa variable siga puesta.
+    </span>
   );
 }
 
@@ -30,7 +31,7 @@ function ReadOnlyRow({ setting }: { setting: SettingView }) {
       <dd>
         <code>{String(setting.value)}</code>
         {setting.note ? <div className="muted small">{setting.note}</div> : null}
-        {setting.override ? <OverrideWarning override={setting.override} /> : null}
+        {setting.override ? <OverrideNote override={setting.override} /> : null}
       </dd>
     </>
   );
@@ -49,6 +50,9 @@ export default function SettingsPage() {
   const remote = syncSettings();
   const origins = listOrigins();
   const project = ensureProject();
+  // Empty on the original machine, which syncs under the project's own uuid.
+  const joinedProjectId = String(projectId.value ?? '');
+  const effectiveProjectId = joinedProjectId || project.uuid;
 
   return (
     <section className="stack sections">
@@ -64,7 +68,7 @@ export default function SettingsPage() {
           <label className="stack field">
             <span>{projectName.label}</span>
             <input name="projectName" defaultValue={String(projectName.value)} required />
-            {projectName.override ? <OverrideWarning override={projectName.override} /> : null}
+            {projectName.override ? <OverrideNote override={projectName.override} /> : null}
           </label>
 
           <label className="stack field">
@@ -79,7 +83,7 @@ export default function SettingsPage() {
             <span className="muted small">
               El board avisa cuando las tasks archivables raíz superan este número.
             </span>
-            {threshold.override ? <OverrideWarning override={threshold.override} /> : null}
+            {threshold.override ? <OverrideNote override={threshold.override} /> : null}
           </label>
 
           <label className="row checkbox">
@@ -95,7 +99,7 @@ export default function SettingsPage() {
                 <code>auto-archive</code>.
               </div>
             </span>
-            {autoArchive.override ? <OverrideWarning override={autoArchive.override} /> : null}
+            {autoArchive.override ? <OverrideNote override={autoArchive.override} /> : null}
           </label>
 
           <label className="stack field">
@@ -109,7 +113,7 @@ export default function SettingsPage() {
             <span className="muted small">
               El remoto es otra instancia de Hartask, no una base suelta.
             </span>
-            {sync.override ? <OverrideWarning override={sync.override} /> : null}
+            {sync.override ? <OverrideNote override={sync.override} /> : null}
           </label>
 
           <label className="stack field">
@@ -126,22 +130,31 @@ export default function SettingsPage() {
               Ambos lados deben usar el mismo secreto. Sin él la sincronización queda cerrada. No se
               muestra nunca; dejarlo vacío conserva el actual.
             </span>
-            {token.override ? <OverrideWarning override={token.override} /> : null}
+            {token.override ? <OverrideNote override={token.override} /> : null}
           </label>
 
-          <label className="stack field">
+          {/* The id this instance syncs under is a fact worth reading, so it
+              shows as a value rather than as a ghost placeholder that looked
+              like one. Editing is behind a disclosure, open when nothing is
+              configured yet — that is the case where the field is the point. */}
+          <div className="stack field">
             <span>{projectId.label}</span>
-            <input
-              name="syncProjectId"
-              defaultValue={String(projectId.value)}
-              placeholder={project.uuid}
-            />
+            <code>{effectiveProjectId}</code>
             <span className="muted small">
-              Déjalo vacío en la máquina original. En una segunda máquina, pega aquí el id del
-              proyecto para unirte al que ya existe en el almacén.
+              {joinedProjectId
+                ? 'Esta máquina se une a un proyecto que ya existe en el almacén.'
+                : 'Es el id propio de este proyecto, con el que se sincroniza. Déjalo así en la máquina original; en una segunda máquina, pega aquí el id del proyecto para unirte al que ya existe en el almacén.'}
             </span>
-            {projectId.override ? <OverrideWarning override={projectId.override} /> : null}
-          </label>
+            {projectId.override ? <OverrideNote override={projectId.override} /> : null}
+            <details open={!effectiveProjectId}>
+              <summary>Editar</summary>
+              <input
+                name="syncProjectId"
+                defaultValue={joinedProjectId}
+                placeholder="Id del proyecto en el almacén"
+              />
+            </details>
+          </div>
 
           <button type="submit">Guardar</button>
         </form>

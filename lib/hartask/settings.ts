@@ -37,10 +37,21 @@ export type SettingView = {
   editable: boolean;
   /** A secret: settable, never read back. The value is replaced by a marker. */
   secret?: boolean;
-  /** Present when an environment variable is winning over the stored value. */
+  /**
+   * Present when an environment variable is winning over the stored value.
+   * A secret's value is masked here too: the marker only says a variable is
+   * set, because a value read back is a value that can leak.
+   */
   override: { name: string; value: string } | null;
   note?: string;
 };
+
+/** The one place that decides a secret is never handed back. */
+const SECRET_KEYS = new Set<keyof HartaskConfig>(['syncToken']);
+
+function mask(configured: boolean): string {
+  return configured ? 'configurado' : 'sin configurar';
+}
 
 const LABELS: Record<keyof HartaskConfig, string> = {
   projectName: 'Nombre del proyecto',
@@ -60,7 +71,11 @@ const RESTART_NOTE = 'Se lee al arrancar; cambiarlo aquí no tendría efecto has
 const ENV_BACKED = new Set<string>(Object.keys(ENV_KEYS));
 
 function overrideFor(key: keyof HartaskConfig) {
-  return ENV_BACKED.has(key) ? envOverrideFor(key as EnvBackedKey) : null;
+  const override = ENV_BACKED.has(key) ? envOverrideFor(key as EnvBackedKey) : null;
+  if (!override) return null;
+  // The masking below used to live only on `value`, so the secret escaped
+  // through the override instead. Both paths go through the same rule now.
+  return SECRET_KEYS.has(key) ? { ...override, value: mask(Boolean(override.value)) } : override;
 }
 
 export function listSettings(): SettingView[] {
@@ -70,9 +85,9 @@ export function listSettings(): SettingView[] {
     key,
     label: LABELS[key],
     // A secret is reported as configured or not, never handed back.
-    value: key === 'syncToken' ? (config.syncToken ? 'configurado' : 'sin configurar') : config[key],
+    value: SECRET_KEYS.has(key) ? mask(Boolean(config[key])) : config[key],
     editable: true,
-    secret: key === 'syncToken',
+    secret: SECRET_KEYS.has(key),
     override: overrideFor(key)
   }));
 
@@ -86,6 +101,23 @@ export function listSettings(): SettingView[] {
   }));
 
   return [...editable, ...readOnly];
+}
+
+/**
+ * The effective configuration with its secrets replaced by markers.
+ *
+ * `GET /api/settings` hands this to whoever asks, and nothing about reaching
+ * the port proves the caller should hold the sync token.
+ */
+export function redactedConfig(): HartaskConfig {
+  const config = loadConfig();
+  const redacted = { ...config };
+  for (const key of SECRET_KEYS) {
+    if (typeof redacted[key] === 'string') {
+      (redacted as Record<string, unknown>)[key] = mask(Boolean(config[key]));
+    }
+  }
+  return redacted;
 }
 
 export type SettingsPatch = Partial<Pick<HartaskConfig, EditableKey>>;

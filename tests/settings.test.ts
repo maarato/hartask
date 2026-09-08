@@ -7,7 +7,7 @@ import {
   readStoredConfig,
   resetConfigCache
 } from '@/lib/hartask/config';
-import { listSettings, saveSettings } from '@/lib/hartask/settings';
+import { listSettings, redactedConfig, saveSettings } from '@/lib/hartask/settings';
 
 function storedFile(): Record<string, unknown> {
   return JSON.parse(readFileSync(configPath(), 'utf8')) as Record<string, unknown>;
@@ -25,6 +25,7 @@ beforeEach(() => {
 afterEach(() => {
   delete process.env.HARTASK_PROJECT_NAME;
   delete process.env.HARTASK_ARCHIVE_REMINDER_THRESHOLD;
+  delete process.env.HARTASK_SYNC_TOKEN;
   resetConfigCache();
 });
 
@@ -161,5 +162,45 @@ describe('listSettings', () => {
   it('reports no override when the variable is absent', () => {
     const threshold = listSettings().find((s) => s.key === 'archiveReminderThreshold');
     expect(threshold?.override).toBeNull();
+  });
+
+  // The masking above only covered a token read from the file. A token coming
+  // from the environment travelled out through `override.value` instead, which
+  // is how the settings page ended up printing it on screen.
+  it('does not leak a token that comes from the environment', () => {
+    process.env.HARTASK_SYNC_TOKEN = 'a-secret-from-the-env';
+    resetConfigCache();
+
+    const view = listSettings().find((setting) => setting.key === 'syncToken');
+    expect(view?.override?.name).toBe('HARTASK_SYNC_TOKEN');
+    expect(view?.override?.value).toBe('configurado');
+    expect(JSON.stringify(listSettings())).not.toContain('a-secret-from-the-env');
+  });
+});
+
+describe('redactedConfig', () => {
+  it('says a token is configured without saying what it is', () => {
+    saveSettings({ syncToken: 'a-shared-secret' });
+
+    expect(redactedConfig().syncToken).toBe('configurado');
+    expect(JSON.stringify(redactedConfig())).not.toContain('a-shared-secret');
+  });
+
+  it('redacts a token that comes from the environment too', () => {
+    process.env.HARTASK_SYNC_TOKEN = 'a-secret-from-the-env';
+    resetConfigCache();
+
+    expect(JSON.stringify(redactedConfig())).not.toContain('a-secret-from-the-env');
+  });
+
+  it('reports an absent token as absent rather than as configured', () => {
+    expect(redactedConfig().syncToken).toBe('sin configurar');
+  });
+
+  it('leaves everything that is not a secret alone', () => {
+    saveSettings({ syncUrl: 'https://hartask.example.com', projectName: 'Demo' });
+
+    expect(redactedConfig().syncUrl).toBe('https://hartask.example.com');
+    expect(redactedConfig().projectName).toBe('Demo');
   });
 });

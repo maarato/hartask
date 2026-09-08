@@ -984,8 +984,10 @@ Working end to end:
   `HARTASK_ARCHIVE_REMINDER_THRESHOLD`) taking precedence, so a single run can
   be redirected without editing the file;
 - settings page at `/settings` writing that file, editing only what takes
-  effect immediately and warning when an environment variable is overriding a
-  value, plus `GET/PATCH /api/settings`;
+  effect immediately and saying when an environment variable is overriding a
+  value, plus `GET/PATCH /api/settings`. The sync token is never read back —
+  not by the page, not by the API, and not through the override notice: every
+  path answers `configurado` or `sin configurar`;
 - task repository: list, hierarchy tree, get, create, update, status
   transitions, notes and events;
 - project repository (single project row, created on first run);
