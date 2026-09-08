@@ -1,5 +1,6 @@
 import { getDb } from '@/lib/db/client';
 import { loadConfig, projectRootPath } from '@/lib/hartask/config';
+import { newUuid } from '@/lib/hartask/sync/identity';
 import type { Project } from '@/lib/hartask/types';
 
 /**
@@ -19,8 +20,8 @@ export function ensureProject(): Project {
   const db = getDb();
   const { projectName } = loadConfig();
   const info = db
-    .prepare(`INSERT INTO projects (name, root_path) VALUES (?, ?)`)
-    .run(projectName, projectRootPath());
+    .prepare(`INSERT INTO projects (uuid, name, root_path) VALUES (?, ?, ?)`)
+    .run(newUuid(), projectName, projectRootPath());
 
   return db.prepare(`SELECT * FROM projects WHERE id = ?`).get(info.lastInsertRowid) as Project;
 }

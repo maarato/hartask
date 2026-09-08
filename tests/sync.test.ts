@@ -1,0 +1,212 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { createHandoff, getLatestHandoff } from '@/lib/hartask/repositories/handoff';
+import {
+  addNote,
+  createTask,
+  getTask,
+  listEvents,
+  listNotes,
+  listTasks,
+  listTaskTree,
+  setTaskStatus,
+  updateTask
+} from '@/lib/hartask/repositories/tasks';
+import { applyChangeset, exportChangeset } from '@/lib/hartask/sync/changeset';
+import { localOrigin } from '@/lib/hartask/sync/identity';
+import { createPeer, on, type Peer } from './peers';
+
+let laptop: Peer;
+let cloud: Peer;
+
+/** Pushes everything one peer has into the other. */
+function sync(from: Peer, to: Peer) {
+  const changeset = on(from, () => exportChangeset(0));
+  return on(to, () => applyChangeset(changeset));
+}
+
+beforeEach(() => {
+  laptop = createPeer('laptop');
+  cloud = createPeer('cloud');
+  // Touching each database creates it and its local origin.
+  on(laptop, () => localOrigin());
+  on(cloud, () => localOrigin());
+});
+
+describe('propagation', () => {
+  it('carries a task to the other side keeping its identity', () => {
+    const created = on(laptop, () => createTask({ title: 'Add authentication', status: 'READY' }));
+
+    const result = sync(laptop, cloud);
+    expect(result.tasks.inserted).toBe(1);
+
+    const arrived = on(cloud, () => getTask(created.public_id));
+    expect(arrived?.uuid).toBe(created.uuid);
+    expect(arrived?.title).toBe('Add authentication');
+    expect(arrived?.status).toBe('READY');
+  });
+
+  it('is idempotent: applying the same changeset twice changes nothing', () => {
+    on(laptop, () => createTask({ title: 'a task' }));
+    const changeset = on(laptop, () => exportChangeset(0));
+
+    on(cloud, () => applyChangeset(changeset));
+    const second = on(cloud, () => applyChangeset(changeset));
+
+    expect(second.tasks.inserted).toBe(0);
+    expect(second.events).toBe(0);
+    expect(on(cloud, () => listTasks()).length).toBe(1);
+  });
+
+  it('rebuilds the hierarchy from uuids, not row ids', () => {
+    on(laptop, () => {
+      const parent = createTask({ title: 'parent' });
+      createTask({ title: 'child', parentId: parent.id });
+    });
+
+    // The cloud already has a task, so its row ids differ from the laptop's.
+    on(cloud, () => createTask({ title: 'unrelated local work' }));
+    sync(laptop, cloud);
+
+    const tree = on(cloud, () => listTaskTree());
+    const parent = tree.find((node) => node.title === 'parent');
+    expect(parent?.children.map((child) => child.title)).toEqual(['child']);
+  });
+
+  it('sends a change back the other way', () => {
+    const task = on(laptop, () => createTask({ title: 'a task', status: 'BACKLOG' }));
+    sync(laptop, cloud);
+
+    on(cloud, () => setTaskStatus(task.public_id, 'READY'));
+    sync(cloud, laptop);
+
+    expect(on(laptop, () => getTask(task.public_id))?.status).toBe('READY');
+  });
+
+  it('merges notes and handoffs as a union, without duplicating them', () => {
+    const task = on(laptop, () => {
+      const created = createTask({ title: 'a task' });
+      addNote(created.id, 'from the laptop');
+      createHandoff({ currentTask: created.public_id, nextStep: 'keep going' });
+      return created;
+    });
+
+    sync(laptop, cloud);
+    sync(laptop, cloud);
+
+    const notes = on(cloud, () => listNotes(getTask(task.public_id)!.id));
+    expect(notes.map((note) => note.body)).toEqual(['from the laptop']);
+    expect(on(cloud, () => getLatestHandoff())?.next_step).toBe('keep going');
+    expect(on(cloud, () => getLatestHandoff())?.current_task?.public_id).toBe(task.public_id);
+  });
+});
+
+describe('conflicts', () => {
+  it('records the discarded version when a remote edit overrides a local one', () => {
+    const task = on(laptop, () => createTask({ title: 'original', status: 'BACKLOG' }));
+    sync(laptop, cloud);
+
+    on(laptop, () => updateTask(task.public_id, { title: 'edited on the laptop' }));
+
+    // Three cloud edits put its clock strictly ahead, so the winner is decided
+    // by the clock rather than by the origin tiebreak and the test is stable.
+    on(cloud, () => {
+      updateTask(task.public_id, { title: 'first' });
+      updateTask(task.public_id, { title: 'second' });
+      updateTask(task.public_id, { title: 'edited in the cloud' });
+    });
+
+    const result = sync(cloud, laptop);
+
+    expect(result.tasks.conflicts).toBe(1);
+    expect(on(laptop, () => getTask(task.public_id))?.title).toBe('edited in the cloud');
+
+    // Nothing is lost: the overwritten version is in the task's history.
+    const conflict = on(laptop, () =>
+      listEvents({ taskId: getTask(task.public_id)!.id }).find(
+        (event) => event.event_type === 'SYNC_CONFLICT'
+      )
+    );
+    expect(conflict).toBeDefined();
+    const payload = JSON.parse(conflict!.payload_json ?? '{}');
+    expect(payload.discarded_local.title).toBe('edited on the laptop');
+    expect(payload.applied_remote.title).toBe('edited in the cloud');
+  });
+
+  it('does not treat receiving a newer version of the peer own edit as a conflict', () => {
+    const task = on(laptop, () => createTask({ title: 'original' }));
+    sync(laptop, cloud);
+
+    // Only the cloud edits; the laptop has not touched it since.
+    on(cloud, () => updateTask(task.public_id, { title: 'edited in the cloud' }));
+    const result = sync(cloud, laptop);
+
+    expect(result.tasks.updated).toBe(1);
+    expect(result.tasks.conflicts).toBe(0);
+  });
+
+  it('keeps the local version when it is the later one', () => {
+    const task = on(laptop, () => createTask({ title: 'original' }));
+    const stale = on(laptop, () => exportChangeset(0));
+
+    on(laptop, () => updateTask(task.public_id, { title: 'newer' }));
+    const result = on(laptop, () => applyChangeset(stale));
+
+    expect(result.tasks.skipped).toBe(1);
+    expect(on(laptop, () => getTask(task.public_id))?.title).toBe('newer');
+  });
+
+  it('resolves a tie the same way on both sides', () => {
+    // Equal clocks must not depend on which peer happens to merge first.
+    const task = on(laptop, () => createTask({ title: 'original' }));
+    sync(laptop, cloud);
+
+    on(laptop, () => updateTask(task.public_id, { title: 'laptop' }));
+    on(cloud, () => updateTask(task.public_id, { title: 'cloud' }));
+
+    sync(laptop, cloud);
+    sync(cloud, laptop);
+    // A second round settles both sides on the same answer.
+    sync(laptop, cloud);
+
+    expect(on(laptop, () => getTask(task.public_id))?.title).toBe(
+      on(cloud, () => getTask(task.public_id))?.title
+    );
+  });
+});
+
+describe('public ids', () => {
+  it('relabels an arriving task when its id is already taken here', () => {
+    // Neither side has met the other, so both mint TASK-001.
+    on(laptop, () => createTask({ title: 'laptop task' }));
+    on(cloud, () => createTask({ title: 'cloud task' }));
+
+    sync(laptop, cloud);
+
+    const ids = on(cloud, () => listTasks().map((task) => task.public_id));
+    expect(new Set(ids).size).toBe(2);
+    expect(on(cloud, () => listTasks()).map((t) => t.title).sort()).toEqual([
+      'cloud task',
+      'laptop task'
+    ]);
+
+    // The relabelling is recorded rather than being silent.
+    const renumbered = on(cloud, () =>
+      listEvents({ limit: 50 }).find((event) => event.event_type === 'SYNC_RENUMBERED')
+    );
+    expect(renumbered).toBeDefined();
+  });
+
+  it('stops the two origins minting from the same range once they are paired', () => {
+    on(laptop, () => createTask({ title: 'laptop task' }));
+    sync(laptop, cloud);
+    sync(cloud, laptop);
+
+    // After pairing, exactly one of the two keeps the bare TASK-NNN range.
+    const next = [
+      on(laptop, () => createTask({ title: 'later on the laptop' }).public_id),
+      on(cloud, () => createTask({ title: 'later in the cloud' }).public_id)
+    ];
+    expect(next[0]).not.toBe(next[1]);
+    expect(next.filter((id) => /^TASK-\d+$/.test(id))).toHaveLength(1);
+  });
+});

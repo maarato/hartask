@@ -1,5 +1,6 @@
 import { getDb } from '@/lib/db/client';
 import { getTask, recordEvent } from '@/lib/hartask/repositories/tasks';
+import { localStamp } from '@/lib/hartask/sync/identity';
 import type { Handoff, HandoffView } from '@/lib/hartask/types';
 
 /**
@@ -70,15 +71,20 @@ export function createHandoff(input: CreateHandoffInput): HandoffView {
       ? null
       : getTask(input.currentTask);
 
+  const stamp = localStamp();
   const info = db
     .prepare(
       `INSERT INTO project_handoff (
+         uuid, origin, lamport,
          current_task_id, what_was_done, current_state, next_step,
          known_problems, important_files_json, important_decisions,
          source, agent_run_id
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
+      stamp.uuid,
+      stamp.origin,
+      stamp.lamport,
       task?.id ?? null,
       input.whatWasDone ?? null,
       input.currentState ?? null,

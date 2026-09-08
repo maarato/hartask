@@ -26,6 +26,7 @@ export function isArchivable(status: TaskStatus): boolean {
 
 export type Project = {
   id: number;
+  uuid: string;
   name: string;
   root_path: string;
   summary: string | null;
@@ -33,7 +34,14 @@ export type Project = {
   updated_at: string;
 };
 
-export type Task = {
+/** Identity every synced row carries, so a merge can match and order rows. */
+export type SyncFields = {
+  uuid: string;
+  origin: string;
+  lamport: number;
+};
+
+export type Task = SyncFields & {
   id: number;
   public_id: string;
   parent_id: number | null;
@@ -51,7 +59,7 @@ export type Task = {
 
 export type TaskNode = Task & { children: TaskNode[] };
 
-export type TaskNote = {
+export type TaskNote = SyncFields & {
   id: number;
   task_id: number;
   body: string;
@@ -59,7 +67,7 @@ export type TaskNote = {
   created_at: string;
 };
 
-export type TaskEvent = {
+export type TaskEvent = SyncFields & {
   id: number;
   task_id: number | null;
   event_type: string;
@@ -77,7 +85,7 @@ export function isTaskStatus(value: unknown): value is TaskStatus {
  * One handoff row is one checkpoint. The table is append-only: the current
  * handoff is the most recent row, and older rows stay as history.
  */
-export type Handoff = {
+export type Handoff = SyncFields & {
   id: number;
   current_task_id: number | null;
   what_was_done: string | null;

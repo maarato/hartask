@@ -1,4 +1,5 @@
 import { getDb } from '@/lib/db/client';
+import { localOrigin, localStamp, nextLamport } from '@/lib/hartask/sync/identity';
 import {
   ARCHIVABLE_STATUSES,
   CLOSED_STATUSES,
@@ -136,18 +137,27 @@ export type CreateTaskInput = {
   agentId?: string | null;
 };
 
+/**
+ * Ids are minted per origin. Each origin only ever scans its own prefix, so
+ * two of them creating a task at the same time cannot produce the same id —
+ * and the origin that created the database keeps the bare TASK-001 format, so
+ * existing references stay valid.
+ */
 function nextPublicId(): string {
+  const prefix = localOrigin().public_id_prefix;
+  const head = `TASK-${prefix}`;
+
   const row = getDb()
     .prepare(
       `SELECT public_id FROM tasks
-       WHERE public_id GLOB 'TASK-[0-9]*'
-       ORDER BY CAST(SUBSTR(public_id, 6) AS INTEGER) DESC
+       WHERE public_id GLOB ?
+       ORDER BY CAST(SUBSTR(public_id, ?) AS INTEGER) DESC
        LIMIT 1`
     )
-    .get() as { public_id: string } | undefined;
+    .get(`${head}[0-9]*`, head.length + 1) as { public_id: string } | undefined;
 
-  const next = row ? Number.parseInt(row.public_id.slice(5), 10) + 1 : 1;
-  return `TASK-${String(next).padStart(3, '0')}`;
+  const next = row ? Number.parseInt(row.public_id.slice(head.length), 10) + 1 : 1;
+  return `${head}${String(next).padStart(3, '0')}`;
 }
 
 export function createTask(input: CreateTaskInput): Task {
@@ -156,12 +166,16 @@ export function createTask(input: CreateTaskInput): Task {
   // public_id generation reads the current max, so allocation and insert must
   // share one transaction to stay correct with two agents writing at once.
   const run = db.transaction((data: CreateTaskInput): Task => {
+    const stamp = localStamp();
     const info = db
       .prepare(
-        `INSERT INTO tasks (public_id, parent_id, title, description, status, priority, next_action)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO tasks (uuid, origin, lamport, public_id, parent_id, title, description, status, priority, next_action)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
+        stamp.uuid,
+        stamp.origin,
+        stamp.lamport,
         nextPublicId(),
         data.parentId ?? null,
         data.title,
@@ -225,7 +239,10 @@ export function updateTask(ref: number | string, patch: UpdateTaskInput): Task {
     }
 
     if (sets.length) {
-      sets.push(`updated_at = CURRENT_TIMESTAMP`);
+      // A local edit moves the row's clock forward, which is what a merge
+      // compares to decide whether this version or the remote one is newer.
+      sets.push(`updated_at = CURRENT_TIMESTAMP`, `lamport = ?`, `origin = ?`);
+      params.push(nextLamport(), localOrigin().id);
       db.prepare(`UPDATE tasks SET ${sets.join(', ')} WHERE id = ?`).run(...params, current.id);
     }
 
@@ -277,9 +294,13 @@ export function addNote(
   authorType: 'agent' | 'human' = 'agent'
 ): TaskNote {
   const db = getDb();
+  const stamp = localStamp();
   const info = db
-    .prepare(`INSERT INTO task_notes (task_id, body, author_type) VALUES (?, ?, ?)`)
-    .run(taskId, body, authorType);
+    .prepare(
+      `INSERT INTO task_notes (uuid, origin, lamport, task_id, body, author_type)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+    .run(stamp.uuid, stamp.origin, stamp.lamport, taskId, body, authorType);
   return db.prepare(`SELECT * FROM task_notes WHERE id = ?`).get(info.lastInsertRowid) as TaskNote;
 }
 
@@ -293,12 +314,16 @@ export type RecordEventInput = {
 
 export function recordEvent(input: RecordEventInput): TaskEvent {
   const db = getDb();
+  const stamp = localStamp();
   const info = db
     .prepare(
-      `INSERT INTO task_events (task_id, event_type, summary, payload_json, agent_id)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO task_events (uuid, origin, lamport, task_id, event_type, summary, payload_json, agent_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
+      stamp.uuid,
+      stamp.origin,
+      stamp.lamport,
       input.taskId ?? null,
       input.eventType,
       input.summary ?? null,
@@ -350,9 +375,10 @@ export function archiveTask(ref: number | string, agentId?: string | null): Task
 
     db.prepare(
       `UPDATE tasks
-       SET archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       SET archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP,
+           lamport = ?, origin = ?
        WHERE id = ? OR parent_id = ?`
-    ).run(task.id, task.id);
+    ).run(nextLamport(), localOrigin().id, task.id, task.id);
 
     const archived = db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(task.id) as Task;
 
@@ -379,9 +405,10 @@ export function unarchiveTask(ref: number | string, agentId?: string | null): Ta
 
     db.prepare(
       `UPDATE tasks
-       SET archived_at = NULL, updated_at = CURRENT_TIMESTAMP
+       SET archived_at = NULL, updated_at = CURRENT_TIMESTAMP,
+           lamport = ?, origin = ?
        WHERE id = ? OR parent_id = ?`
-    ).run(task.id, task.id);
+    ).run(nextLamport(), localOrigin().id, task.id, task.id);
 
     const restored = db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(task.id) as Task;
 
