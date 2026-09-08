@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { autoArchiveIfEnabled } from '@/lib/hartask/auto-archive';
 import {
   addNote,
   archiveAllArchivable,
@@ -30,6 +31,23 @@ function revalidateTasks(): void {
   revalidatePath('/tasks/[id]', 'page');
 }
 
+/**
+ * A mutation that can push the archivable count up, followed by the
+ * auto-archive check.
+ *
+ * The count can only cross the threshold because something changed, so this is
+ * where it is noticed: a page render must not mutate state, and there is no
+ * scheduler.
+ *
+ * Restoring a task is deliberately not one of these. It raises the count too,
+ * but the user just asked for that task back — archiving it again immediately
+ * would be the feature fighting them.
+ */
+function afterMutation(): void {
+  autoArchiveIfEnabled();
+  revalidateTasks();
+}
+
 export async function createTaskAction(formData: FormData): Promise<void> {
   const title = text(formData, 'title');
   if (!title) return;
@@ -45,7 +63,7 @@ export async function createTaskAction(formData: FormData): Promise<void> {
     parentId: parentId ? Number(parentId) : null
   });
 
-  revalidateTasks();
+  afterMutation();
 }
 
 export async function setTaskStatusAction(formData: FormData): Promise<void> {
@@ -55,7 +73,7 @@ export async function setTaskStatusAction(formData: FormData): Promise<void> {
 
   setTaskStatus(publicId, status, { blockedReason: text(formData, 'blocked_reason') });
 
-  revalidateTasks();
+  afterMutation();
 }
 
 export async function setNextActionAction(formData: FormData): Promise<void> {

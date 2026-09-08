@@ -984,7 +984,8 @@ Working end to end:
   recent-events panel;
 - archiving for root tasks in DONE or BACKLOG, cascading to their subtasks and
   reversible from an "Archivadas" section, with a reminder and a bulk
-  "archive all" once archivable work passes a configurable threshold;
+  "archive all" once archivable work passes a configurable threshold, plus an
+  opt-in that does it without being asked;
 - Summary view backed by SQLite: editable Project Context plus the last
   handoff, answering the cold-start questions;
 - task detail at `/tasks/[id]`: the task's own notes and its complete event

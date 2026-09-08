@@ -50,6 +50,10 @@ or against another Hartask instance when it is `https:`. See `docs/SYNC.md`. Syn
 never returned by the API or rendered in the UI — when adding a setting, decide
 whether it is a secret before it reaches a page.
 
+`HARTASK_AUTO_ARCHIVE` turns on archiving past the threshold without being
+asked. It runs after a mutation, never during a render — a page render must not
+change state — and restoring a task deliberately does not re-trigger it.
+
 `/settings` writes the config file. Only settings that take effect immediately
 are editable there; anything read at boot stays read-only. When adding a
 setting, decide which of the two it is, and remember that an environment

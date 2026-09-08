@@ -8,6 +8,11 @@ export type HartaskConfig = {
   projectName: string;
   /** Archivable root tasks tolerated before the board suggests archiving. */
   archiveReminderThreshold: number;
+  /**
+   * Archive past the threshold without being asked. Off by default: tasks
+   * disappearing from the board unprompted has to be something the user chose.
+   */
+  autoArchive: boolean;
   /** Hartask instance to sync with, e.g. https://hartask.example.com */
   syncUrl: string;
   /**
@@ -31,6 +36,7 @@ export const DEFAULT_CONFIG: HartaskConfig = {
   database: './data/hartask.sqlite',
   projectName: 'Current Project',
   archiveReminderThreshold: 15,
+  autoArchive: false,
   syncUrl: '',
   syncToken: '',
   syncProjectId: '',
@@ -47,6 +53,7 @@ export const ENV_KEYS = {
   database: 'HARTASK_DATABASE',
   projectName: 'HARTASK_PROJECT_NAME',
   archiveReminderThreshold: 'HARTASK_ARCHIVE_REMINDER_THRESHOLD',
+  autoArchive: 'HARTASK_AUTO_ARCHIVE',
   syncUrl: 'HARTASK_SYNC_URL',
   syncToken: 'HARTASK_SYNC_TOKEN',
   syncProjectId: 'HARTASK_SYNC_PROJECT_ID'
@@ -59,6 +66,17 @@ let cached: HartaskConfig | null = null;
 /** The config file this instance reads and writes. */
 export function configPath(): string {
   return resolve(process.cwd(), process.env.HARTASK_CONFIG || 'hartask.config.json');
+}
+
+/** Accepts the usual spellings; anything else keeps the stored value. */
+function readBooleanEnv(name: string, fallback: boolean): boolean {
+  const raw = process.env[name]?.trim().toLowerCase();
+  if (raw === undefined || raw === '') return fallback;
+  if (['1', 'true', 'yes', 'on'].includes(raw)) return true;
+  if (['0', 'false', 'no', 'off'].includes(raw)) return false;
+
+  console.warn(`[hartask] ${name} is not a boolean ("${raw}"), using ${fallback}`);
+  return fallback;
 }
 
 function readNumberEnv(name: string, fallback: number): number {
@@ -110,6 +128,7 @@ export function loadConfig(): HartaskConfig {
       ENV_KEYS.archiveReminderThreshold,
       merged.archiveReminderThreshold
     ),
+    autoArchive: readBooleanEnv(ENV_KEYS.autoArchive, merged.autoArchive),
     syncUrl: process.env[ENV_KEYS.syncUrl] || merged.syncUrl,
     syncToken: process.env[ENV_KEYS.syncToken] || merged.syncToken,
     syncProjectId: process.env[ENV_KEYS.syncProjectId] || merged.syncProjectId
@@ -139,6 +158,10 @@ export function projectRootPath(): string {
 
 export function archiveReminderThreshold(): number {
   return loadConfig().archiveReminderThreshold;
+}
+
+export function autoArchiveEnabled(): boolean {
+  return loadConfig().autoArchive;
 }
 
 export function syncSettings(): { url: string; token: string; projectId: string } {

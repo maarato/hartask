@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { renameProject } from '@/lib/hartask/repositories/projects';
 import { saveSettings } from '@/lib/hartask/settings';
+import { autoArchiveIfEnabled } from '@/lib/hartask/auto-archive';
 import { syncSettings } from '@/lib/hartask/config';
 import { syncWithPeer } from '@/lib/hartask/sync/peer';
 import { isRemoteStoreUrl, syncWithRemoteStore } from '@/lib/hartask/sync/remote';
@@ -29,11 +30,19 @@ export async function saveSettingsAction(formData: FormData): Promise<void> {
     syncToken: text(formData, 'syncToken') ?? undefined,
     syncProjectId: formData.has('syncProjectId')
       ? (text(formData, 'syncProjectId') ?? '')
+      : undefined,
+    // An unchecked checkbox is simply absent, so presence is the value.
+    autoArchive: formData.has('autoArchiveSubmitted')
+      ? formData.has('autoArchive')
       : undefined
   });
 
   // The project row carries its own name, so a rename has to reach it as well.
   if (projectName) renameProject(config.projectName);
+
+  // Lowering the threshold can put the board over it without any task having
+  // changed, so the check belongs here too.
+  autoArchiveIfEnabled();
 
   revalidatePath('/settings');
   revalidatePath('/summary');

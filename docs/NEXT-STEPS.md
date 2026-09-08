@@ -59,6 +59,18 @@ copied into other repositories.
     Codex.
 14. Add Stop/session-end integration where a host supports hooks.
 
+## Auto-archive
+
+Off by default: a board emptying itself unprompted has to be something the user
+chose. When on, it runs after a mutation that can raise the archivable count —
+creating a task, changing a status, or lowering the threshold — because the
+count can only cross the threshold when something changes, and a page render
+must not mutate state. Restoring a task raises the count too but does not
+re-trigger it; archiving straight back would be the feature fighting the user.
+
+Archiving is attributed to `auto-archive` on each event, so a board that
+emptied itself is distinguishable from one someone cleared by hand.
+
 ## Known gaps in the current layer
 
 - The repository layer is covered by `npm test`; the API routes and the UI are

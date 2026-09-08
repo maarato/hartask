@@ -23,6 +23,7 @@ import {
 export const EDITABLE_KEYS = [
   'projectName',
   'archiveReminderThreshold',
+  'autoArchive',
   'syncUrl',
   'syncToken',
   'syncProjectId'
@@ -32,7 +33,7 @@ export type EditableKey = (typeof EDITABLE_KEYS)[number];
 export type SettingView = {
   key: keyof HartaskConfig;
   label: string;
-  value: string | number;
+  value: string | number | boolean;
   editable: boolean;
   /** A secret: settable, never read back. The value is replaced by a marker. */
   secret?: boolean;
@@ -44,6 +45,7 @@ export type SettingView = {
 const LABELS: Record<keyof HartaskConfig, string> = {
   projectName: 'Nombre del proyecto',
   archiveReminderThreshold: 'Umbral de recordatorio de archivado',
+  autoArchive: 'Archivar automáticamente al pasar el umbral',
   syncUrl: 'Hartask remoto con el que sincronizar',
   syncToken: 'Secreto compartido de sincronización',
   syncProjectId: 'Proyecto en el almacén remoto',
@@ -98,6 +100,7 @@ export function saveSettings(patch: SettingsPatch): HartaskConfig {
   const next: Partial<HartaskConfig> = { ...stored };
 
   if (patch.projectName !== undefined) next.projectName = patch.projectName;
+  if (patch.autoArchive !== undefined) next.autoArchive = patch.autoArchive;
   if (patch.syncUrl !== undefined) next.syncUrl = patch.syncUrl;
   if (patch.syncProjectId !== undefined) next.syncProjectId = patch.syncProjectId;
   // An empty submission leaves the stored secret alone, so saving the rest of

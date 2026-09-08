@@ -43,6 +43,7 @@ export default function SettingsPage() {
   const threshold = byKey.get('archiveReminderThreshold')!;
   const sync = byKey.get('syncUrl')!;
   const token = byKey.get('syncToken')!;
+  const autoArchive = byKey.get('autoArchive')!;
   const projectId = byKey.get('syncProjectId')!;
   const readOnly = settings.filter((setting) => !setting.editable);
   const remote = syncSettings();
@@ -79,6 +80,22 @@ export default function SettingsPage() {
               El board avisa cuando las tasks archivables raíz superan este número.
             </span>
             {threshold.override ? <OverrideWarning override={threshold.override} /> : null}
+          </label>
+
+          <label className="row checkbox">
+            {/* An unchecked box sends nothing, so a marker says the form did
+                include the field and the absence is a real "off". */}
+            <input type="hidden" name="autoArchiveSubmitted" value="1" />
+            <input type="checkbox" name="autoArchive" defaultChecked={autoArchive.value === true} />
+            <span>
+              {autoArchive.label}
+              <div className="muted small">
+                Al pasar el umbral se archivan solas, sin preguntar. Quedan en{' '}
+                <em>Archivadas</em> y los eventos las atribuyen a{' '}
+                <code>auto-archive</code>.
+              </div>
+            </span>
+            {autoArchive.override ? <OverrideWarning override={autoArchive.override} /> : null}
           </label>
 
           <label className="stack field">

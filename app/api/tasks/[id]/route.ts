@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { autoArchiveIfEnabled } from '@/lib/hartask/auto-archive';
 import {
   addNote,
   archiveTask,
@@ -50,6 +51,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       const result = body.archived
         ? archiveTask(task.id, agentId)
         : unarchiveTask(task.id, agentId);
+      // No auto-archive here: this branch includes unarchiving, and archiving
+      // a task straight back would undo what was just asked for.
       return NextResponse.json({ task: result });
     } catch (error) {
       return NextResponse.json({ error: (error as Error).message }, { status: 409 });
@@ -70,5 +73,6 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     addNote(updated.id, body.note.trim(), 'agent');
   }
 
+  autoArchiveIfEnabled();
   return NextResponse.json({ task: updated });
 }

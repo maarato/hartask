@@ -18,6 +18,7 @@ beforeEach(() => {
   delete process.env.HARTASK_PROJECT_NAME;
   delete process.env.HARTASK_ARCHIVE_REMINDER_THRESHOLD;
   delete process.env.HARTASK_SYNC_TOKEN;
+  delete process.env.HARTASK_AUTO_ARCHIVE;
   resetConfigCache();
 });
 
@@ -129,6 +130,7 @@ describe('listSettings', () => {
     expect(editable).toEqual([
       'projectName',
       'archiveReminderThreshold',
+      'autoArchive',
       'syncUrl',
       'syncToken',
       'syncProjectId'

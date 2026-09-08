@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { autoArchiveIfEnabled } from '@/lib/hartask/auto-archive';
 import { ensureProject } from '@/lib/hartask/repositories/projects';
 import {
   countTasksByStatus,
@@ -58,5 +59,6 @@ export async function POST(request: Request) {
     agentId: typeof body.agent_id === 'string' ? body.agent_id : null
   });
 
+  autoArchiveIfEnabled();
   return NextResponse.json({ task }, { status: 201 });
 }

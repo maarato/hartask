@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { archiveReminderThreshold } from '@/lib/hartask/config';
+import { archiveReminderThreshold, autoArchiveEnabled } from '@/lib/hartask/config';
 import { ensureProject } from '@/lib/hartask/repositories/projects';
 import {
   countArchivableRoots,
@@ -150,13 +150,29 @@ function TaskCard({ node, depth }: { node: TaskNode; depth: number }) {
  * only useful while it can be read at a glance, so it says when it is drifting
  * out of that range instead of waiting to be noticed.
  */
-function ArchiveReminder({ count, threshold }: { count: number; threshold: number }) {
+function ArchiveReminder({
+  count,
+  threshold,
+  auto
+}: {
+  count: number;
+  threshold: number;
+  auto: boolean;
+}) {
   return (
     <form action={archiveAllArchivableAction} className="card notice">
       <span>
         <strong>{count} tasks archivables</strong> en el board (DONE o BACKLOG, más de{' '}
         {threshold}). Archivarlas las saca de la vista sin borrarlas; siguen en{' '}
         <em>Archivadas</em>.
+        {auto ? (
+          // Auto-archive runs after a mutation, so a board can sit over the
+          // threshold until the next change. Saying so beats looking broken.
+          <div className="muted small">
+            El archivado automático está activo: esto se resolverá solo en el próximo cambio, o
+            puedes hacerlo ahora.
+          </div>
+        ) : null}
       </span>
       <button type="submit">Archivar todo</button>
     </form>
@@ -264,7 +280,7 @@ export default function TasksPage() {
       </div>
 
       {archivable > threshold ? (
-        <ArchiveReminder count={archivable} threshold={threshold} />
+        <ArchiveReminder count={archivable} threshold={threshold} auto={autoArchiveEnabled()} />
       ) : null}
 
       <NewTaskForm parents={flat} />
