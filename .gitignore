@@ -3,6 +3,8 @@ node_modules
 data/*.sqlite
 data/*.sqlite-*
 .env*
+# The template carries no values and documents what the others need.
+!.env.example
 .DS_Store
 *.tsbuildinfo
 hartask.config.json
