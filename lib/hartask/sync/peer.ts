@@ -89,8 +89,11 @@ export async function syncWithPeer(): Promise<SyncOutcome> {
   }
 
   const pulled = applyChangeset(body.changeset);
-  const pushed = body.merged ?? {
-    tasks: { inserted: 0, updated: 0, skipped: 0, conflicts: 0 },
+  const empty = { inserted: 0, updated: 0, skipped: 0, conflicts: 0 };
+  const pushed: MergeResult = body.merged ?? {
+    tasks: { ...empty },
+    prompts: { ...empty },
+    prompt_runs: { ...empty },
     notes: 0,
     events: 0,
     handoffs: 0

@@ -62,9 +62,38 @@ a separate viewer would read to show what is in the store.
 The local schema stays single-project. That scope only means anything on the
 remote side.
 
+## What travels, and what does not
+
+| Table | Syncs | Why |
+| --- | --- | --- |
+| `projects`, `tasks`, `task_notes`, `task_events`, `project_handoff` | yes | the project's state and its history |
+| `prompts`, `prompt_runs` | yes | the queue is worth nothing if it only exists on one machine |
+| `sync_origins` | no | the identity of *this* database; copying it would make two instances believe they are the same origin |
+| `harness_components`, `harness_scans` | no | they describe files on one machine's disk |
+
+Some columns stay local too. `id`, `parent_id`, `task_id` and `prompt_id` are
+per-database row ids, replaced on the wire by uuids. `synced_lamport` is this
+instance's record of what it last agreed with a peer. `projects.root_path` is a
+path on one machine's disk.
+
+## Claiming across machines
+
+The Prompt Stack promises that claiming queued work is atomic, so two agents
+cannot execute the same prompt. That holds **within one instance**. It cannot
+hold across machines: if two of them claim the same prompt while disconnected,
+both agents have already run the work by the time they meet, and no merge can
+undo that.
+
+Sync does not pretend otherwise. When a merge finds the same prompt claimed by
+two different agents, it records a `SYNC_DOUBLE_CLAIM` event naming both,
+instead of quietly keeping one. Treat a queue shared across machines as
+advisory, not as a lock.
+
 ## What sync guarantees, and what it does not
 
 - **Convergence.** Both sides end on the same value for every row.
+- **Queued work is not locked across machines.** See above: a double claim is
+  recorded, not prevented.
 - **No silent loss.** When a remote version overrides a locally modified row,
   the discarded one is written to the task's history as a `SYNC_CONFLICT`
   event, with both versions in the payload.

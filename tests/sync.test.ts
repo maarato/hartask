@@ -15,6 +15,13 @@ import { getDb } from '@/lib/db/client';
 import { applyChangeset, exportChangeset } from '@/lib/hartask/sync/changeset';
 import { localOrigin } from '@/lib/hartask/sync/identity';
 import { createPeer, on, type Peer } from './peers';
+import {
+  claimPrompt,
+  insertPrompt,
+  insertPromptRun,
+  listPromptRuns,
+  listPrompts
+} from './helpers';
 
 let laptop: Peer;
 let cloud: Peer;
@@ -111,6 +118,81 @@ describe('propagation', () => {
     expect(notes.map((note) => note.body)).toEqual(['from the laptop']);
     expect(on(cloud, () => getLatestHandoff())?.next_step).toBe('keep going');
     expect(on(cloud, () => getLatestHandoff())?.current_task?.public_id).toBe(task.public_id);
+  });
+});
+
+describe('prompt stack', () => {
+  it('carries a prompt and keeps its link to the task', () => {
+    const task = on(laptop, () => createTask({ title: 'Add authentication' }));
+    on(laptop, () => insertPrompt({ prompt: 'Analyze the current auth', taskId: task.id }));
+
+    const result = sync(laptop, cloud);
+
+    expect(result.prompts.inserted).toBe(1);
+    const arrived = on(cloud, () => listPrompts())[0];
+    expect(arrived.prompt).toBe('Analyze the current auth');
+    // Row ids differ per database, so the link has to be rebuilt from the uuid.
+    expect(arrived.task_id).toBe(on(cloud, () => getTask(task.public_id))!.id);
+  });
+
+  it('carries a run and keeps its link to the prompt', () => {
+    const prompt = on(laptop, () => insertPrompt({ prompt: 'Fix the tests' }));
+    on(laptop, () => insertPromptRun(prompt.id, 'FAILED'));
+
+    sync(laptop, cloud);
+
+    const run = on(cloud, () => listPromptRuns())[0];
+    const remotePrompt = on(cloud, () => listPrompts())[0];
+    expect(run.status).toBe('FAILED');
+    expect(run.prompt_id).toBe(remotePrompt.id);
+  });
+
+  it('propagates a claim to the other side', () => {
+    const prompt = on(laptop, () => insertPrompt({ prompt: 'Do the thing' }));
+    sync(laptop, cloud);
+
+    on(cloud, () => claimPrompt(prompt.uuid, 'agent-in-the-cloud'));
+    sync(cloud, laptop);
+
+    const local = on(laptop, () => listPrompts())[0];
+    expect(local.status).toBe('CLAIMED');
+    expect(local.claimed_by).toBe('agent-in-the-cloud');
+  });
+
+  it('records a double claim rather than smoothing it over', () => {
+    const prompt = on(laptop, () => insertPrompt({ prompt: 'Do the thing' }));
+    sync(laptop, cloud);
+
+    // Both sides claim while disconnected. Sync cannot undo two agents having
+    // already run the same work; the least it can do is say so.
+    on(laptop, () => claimPrompt(prompt.uuid, 'agent-on-the-laptop'));
+    on(cloud, () => {
+      claimPrompt(prompt.uuid, 'agent-in-the-cloud');
+      claimPrompt(prompt.uuid, 'agent-in-the-cloud');
+      claimPrompt(prompt.uuid, 'agent-in-the-cloud');
+    });
+
+    const result = sync(cloud, laptop);
+
+    expect(result.prompts.conflicts).toBe(1);
+    const event = on(laptop, () =>
+      listEvents({ limit: 50 }).find((e) => e.event_type === 'SYNC_DOUBLE_CLAIM')
+    );
+    expect(event).toBeDefined();
+    const payload = JSON.parse(event!.payload_json ?? '{}');
+    expect(payload.local_claim).toBe('agent-on-the-laptop');
+    expect(payload.remote_claim).toBe('agent-in-the-cloud');
+  });
+
+  it('does not flag a double claim when only one side claimed', () => {
+    const prompt = on(laptop, () => insertPrompt({ prompt: 'Do the thing' }));
+    sync(laptop, cloud);
+
+    on(cloud, () => claimPrompt(prompt.uuid, 'agent-in-the-cloud'));
+    const result = sync(cloud, laptop);
+
+    expect(result.prompts.updated).toBe(1);
+    expect(result.prompts.conflicts).toBe(0);
   });
 });
 

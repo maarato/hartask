@@ -15,6 +15,7 @@ import {
 } from '@/lib/hartask/repositories/tasks';
 import { isRemoteStoreUrl, syncWithRemoteStore } from '@/lib/hartask/sync/remote';
 import { createPeer, on, type Peer } from './peers';
+import { claimPrompt, insertPrompt, insertPromptRun, listPrompts } from './helpers';
 
 /**
  * The libSQL client treats a file: URL exactly like a remote one, so the whole
@@ -158,6 +159,41 @@ describe('syncWithRemoteStore', () => {
     // Neither project sees the other's tasks, which is what project_uuid is for.
     await sync(laptop);
     expect(on(laptop, () => listTasks()).map((t) => t.title)).toEqual(['laptop project work']);
+  });
+
+  it('carries the prompt queue and its runs through the store', async () => {
+    const { project_uuid } = await (async () => {
+      on(laptop, () => {
+        const task = createTask({ title: 'Add authentication' });
+        const prompt = insertPrompt({ prompt: 'Analyze the current auth', taskId: task.id });
+        insertPromptRun(prompt.id, 'FAILED');
+      });
+      return sync(laptop);
+    })();
+
+    expect((await readStore('prompts')).length).toBe(1);
+    expect((await readStore('prompt_runs')).length).toBe(1);
+
+    await sync(desktop, project_uuid);
+
+    const arrived = on(desktop, () => listPrompts())[0];
+    expect(arrived.prompt).toBe('Analyze the current auth');
+    // The link is rebuilt from the uuid: row ids differ on the other side.
+    expect(arrived.task_id).toBe(on(desktop, () => listTasks())[0].id);
+  });
+
+  it('brings a claim made on the other machine back', async () => {
+    const prompt = on(laptop, () => insertPrompt({ prompt: 'Do the thing' }));
+    const { project_uuid } = await sync(laptop);
+    await sync(desktop, project_uuid);
+
+    on(desktop, () => claimPrompt(prompt.uuid, 'agent-on-the-desktop'));
+    await sync(desktop, project_uuid);
+    await sync(laptop);
+
+    const local = on(laptop, () => listPrompts())[0];
+    expect(local.status).toBe('CLAIMED');
+    expect(local.claimed_by).toBe('agent-on-the-desktop');
   });
 
   it('records the sync as an event on the project timeline', async () => {

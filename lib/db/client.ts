@@ -34,11 +34,27 @@ const ADDED_COLUMNS: { table: string; column: string; definition: string }[] = [
   { table: 'task_events', column: 'lamport', definition: 'INTEGER NOT NULL DEFAULT 0' },
   { table: 'project_handoff', column: 'uuid', definition: 'TEXT' },
   { table: 'project_handoff', column: 'origin', definition: 'TEXT' },
-  { table: 'project_handoff', column: 'lamport', definition: 'INTEGER NOT NULL DEFAULT 0' }
+  { table: 'project_handoff', column: 'lamport', definition: 'INTEGER NOT NULL DEFAULT 0' },
+  { table: 'prompts', column: 'uuid', definition: 'TEXT' },
+  { table: 'prompts', column: 'origin', definition: 'TEXT' },
+  { table: 'prompts', column: 'lamport', definition: 'INTEGER NOT NULL DEFAULT 0' },
+  { table: 'prompts', column: 'synced_lamport', definition: 'INTEGER NOT NULL DEFAULT 0' },
+  { table: 'prompt_runs', column: 'uuid', definition: 'TEXT' },
+  { table: 'prompt_runs', column: 'origin', definition: 'TEXT' },
+  { table: 'prompt_runs', column: 'lamport', definition: 'INTEGER NOT NULL DEFAULT 0' },
+  { table: 'prompt_runs', column: 'synced_lamport', definition: 'INTEGER NOT NULL DEFAULT 0' }
 ];
 
 /** Tables whose rows are identified across origins by a uuid. */
-const SYNCED_TABLES = ['projects', 'tasks', 'task_notes', 'task_events', 'project_handoff'];
+const SYNCED_TABLES = [
+  'projects',
+  'tasks',
+  'task_notes',
+  'task_events',
+  'project_handoff',
+  'prompts',
+  'prompt_runs'
+];
 
 function addColumns(db: DbHandle): void {
   for (const { table, column, definition } of ADDED_COLUMNS) {

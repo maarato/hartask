@@ -9,6 +9,7 @@ import {
   type AppendRow,
   type Changeset,
   type MergeResult,
+  type SyncedRow,
   type TaskRow
 } from '@/lib/hartask/sync/changeset';
 
@@ -40,6 +41,7 @@ const REMOTE_SCHEMA = [
      uuid TEXT PRIMARY KEY,
      name TEXT NOT NULL,
      summary TEXT,
+     created_at TEXT,
      updated_at TEXT
    )`,
   `CREATE TABLE IF NOT EXISTS tasks (
@@ -72,6 +74,23 @@ const REMOTE_SCHEMA = [
      known_problems TEXT, important_files_json TEXT, important_decisions TEXT,
      source TEXT, agent_run_id TEXT, created_at TEXT, updated_at TEXT
    )`,
+  `CREATE TABLE IF NOT EXISTS prompts (
+     uuid TEXT PRIMARY KEY,
+     project_uuid TEXT NOT NULL,
+     origin TEXT, lamport INTEGER NOT NULL DEFAULT 0,
+     task_uuid TEXT, title TEXT, prompt TEXT NOT NULL, status TEXT NOT NULL,
+     priority INTEGER NOT NULL DEFAULT 0, position INTEGER NOT NULL DEFAULT 0,
+     claimed_by TEXT, claimed_at TEXT, created_at TEXT, updated_at TEXT
+   )`,
+  `CREATE TABLE IF NOT EXISTS prompt_runs (
+     uuid TEXT PRIMARY KEY,
+     project_uuid TEXT NOT NULL,
+     origin TEXT, lamport INTEGER NOT NULL DEFAULT 0,
+     prompt_uuid TEXT, agent_id TEXT, status TEXT NOT NULL,
+     summary TEXT, error TEXT, started_at TEXT, finished_at TEXT
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_prompts_project ON prompts(project_uuid)`,
+  `CREATE INDEX IF NOT EXISTS idx_runs_project ON prompt_runs(project_uuid)`,
   `CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_uuid)`,
   `CREATE INDEX IF NOT EXISTS idx_notes_project ON task_notes(project_uuid)`,
   `CREATE INDEX IF NOT EXISTS idx_events_project ON task_events(project_uuid)`,
@@ -157,17 +176,23 @@ async function readRemote(
     ).rows as unknown as Record<string, unknown>[];
 
   const tasks = (await query('tasks')) as unknown as TaskRow[];
+  const prompts = (await query('prompts')) as unknown as SyncedRow[];
+  const promptRuns = (await query('prompt_runs')) as unknown as SyncedRow[];
   const notes = (await query('task_notes')) as unknown as AppendRow[];
   const events = (await query('task_events')) as unknown as AppendRow[];
   const handoffs = (await query('project_handoff')) as unknown as AppendRow[];
 
-  const lamports = [...tasks, ...notes, ...events, ...handoffs].map((row) => Number(row.lamport));
+  const lamports = [...tasks, ...prompts, ...promptRuns, ...notes, ...events, ...handoffs].map(
+    (row) => Number(row.lamport)
+  );
 
   return {
     origin: storeOrigin,
     origin_label: 'remote store',
     lamport: Math.max(...lamports, 0),
     tasks,
+    prompts,
+    prompt_runs: promptRuns,
     notes,
     events,
     handoffs
@@ -178,46 +203,87 @@ async function writeRemote(
   client: Client,
   projectUuid: string,
   local: Changeset,
-  project: { name: string; summary: string | null; updated_at: string }
+  project: { name: string; summary: string | null; created_at: string; updated_at: string }
 ): Promise<number> {
   const statements: { sql: string; args: InValue[] }[] = [
     {
-      sql: `INSERT INTO projects (uuid, name, summary, updated_at) VALUES (?, ?, ?, ?)
+      sql: `INSERT INTO projects (uuid, name, summary, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(uuid) DO UPDATE SET name = excluded.name, summary = excluded.summary,
+                                            created_at = excluded.created_at,
                                             updated_at = excluded.updated_at`,
-      args: [projectUuid, project.name, project.summary, project.updated_at]
+      args: [projectUuid, project.name, project.summary, project.created_at, project.updated_at]
     }
   ];
 
-  const taskColumns = [
-    'public_id',
-    'parent_uuid',
-    'title',
-    'description',
-    'status',
-    'priority',
-    'next_action',
-    'blocked_reason',
-    'archived_at',
-    'created_at',
-    'updated_at'
+  // Mutable tables upsert: after the local merge this database already holds
+  // the winning version, so the remote copy is simply overwritten.
+  const MUTABLE_REMOTE = [
+    {
+      table: 'tasks',
+      rows: local.tasks as unknown as Record<string, unknown>[],
+      columns: [
+        'public_id',
+        'parent_uuid',
+        'title',
+        'description',
+        'status',
+        'priority',
+        'next_action',
+        'blocked_reason',
+        'archived_at',
+        'created_at',
+        'updated_at'
+      ]
+    },
+    {
+      table: 'prompts',
+      rows: local.prompts as unknown as Record<string, unknown>[],
+      columns: [
+        'task_uuid',
+        'title',
+        'prompt',
+        'status',
+        'priority',
+        'position',
+        'claimed_by',
+        'claimed_at',
+        'created_at',
+        'updated_at'
+      ]
+    },
+    {
+      table: 'prompt_runs',
+      rows: local.prompt_runs as unknown as Record<string, unknown>[],
+      columns: [
+        'prompt_uuid',
+        'agent_id',
+        'status',
+        'summary',
+        'error',
+        'started_at',
+        'finished_at'
+      ]
+    }
   ];
 
-  for (const task of local.tasks) {
-    const columns = ['uuid', 'project_uuid', 'origin', 'lamport', ...taskColumns];
-    statements.push({
-      sql: `INSERT INTO tasks (${columns.join(', ')})
-            VALUES (${columns.map(() => '?').join(', ')})
-            ON CONFLICT(uuid) DO UPDATE SET
-              ${[...taskColumns, 'origin', 'lamport'].map((c) => `${c} = excluded.${c}`).join(', ')}`,
-      args: [
-        task.uuid,
-        projectUuid,
-        task.origin,
-        task.lamport,
-        ...taskColumns.map((column) => value(task as unknown as Record<string, unknown>, column))
-      ]
-    });
+  for (const { table, rows, columns } of MUTABLE_REMOTE) {
+    for (const row of rows) {
+      const all = ['uuid', 'project_uuid', 'origin', 'lamport', ...columns];
+      statements.push({
+        sql: `INSERT INTO ${table} (${all.join(', ')})
+              VALUES (${all.map(() => '?').join(', ')})
+              ON CONFLICT(uuid) DO UPDATE SET
+                ${[...columns, 'origin', 'lamport'].map((c) => `${c} = excluded.${c}`).join(', ')}`,
+        args: [
+          value(row, 'uuid'),
+          projectUuid,
+          value(row, 'origin'),
+          value(row, 'lamport'),
+          ...columns.map((column) => value(row, column))
+        ]
+      });
+    }
   }
 
   for (const [table, columns] of Object.entries(APPEND_COLUMNS)) {
@@ -273,6 +339,7 @@ export async function syncWithRemoteStore(): Promise<RemoteSyncOutcome> {
     const pushed = await writeRemote(client, project.uuid, outgoing, {
       name: project.name,
       summary: project.summary,
+      created_at: project.created_at,
       updated_at: project.updated_at
     });
 

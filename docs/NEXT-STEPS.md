@@ -106,6 +106,12 @@ of its own — read its rows, merge here, write the result back. Full setup in
 - A second machine must be told the project uuid it is joining
   (`HARTASK_SYNC_PROJECT_ID`); every database mints its own, so without it the
   machine syncs an empty scope of its own.
+- `prompts` and `prompt_runs` sync, but nothing writes them yet: the Prompt
+  Stack repository is still TASK-017, so that path is exercised by tests rather
+  than by use. Claiming is atomic within an instance and only advisory across
+  machines; a double claim is recorded as `SYNC_DOUBLE_CLAIM`.
+- `harness_components` and `harness_scans` stay local on purpose: they describe
+  files on one machine's disk.
 - Every exchange sends the full changeset. Resending is idempotent, so this is
   correct but not minimal; a per-peer cursor would trade that for state that
   has to stay right across failed exchanges.
