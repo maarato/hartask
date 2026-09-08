@@ -53,6 +53,28 @@ Copy the id from the first machine (it is on `/settings`, and in
 HARTASK_SYNC_PROJECT_ID=<that uuid> npm run dev
 ```
 
+## Adding another project to the same store
+
+A new project mints its own uuid and becomes a separate row in `projects`. It
+needs the URL and the token, and **not** `HARTASK_SYNC_PROJECT_ID`:
+
+| | Second machine, same project | New project, same store |
+| --- | --- | --- |
+| `HARTASK_SYNC_URL` | same | same |
+| `HARTASK_SYNC_TOKEN` | same | same |
+| `HARTASK_SYNC_PROJECT_ID` | the project's uuid | leave empty |
+| Result | the board reaches the other machine | a separate project in the store |
+
+Setting the project id on a genuinely new project makes it write into the
+existing project's scope, and the two boards end up merged into one. Copying an
+`.env.local` from another project is how that happens, so check that line before
+the first sync.
+
+Install Hartask by cloning it, not by copying the folder from another project.
+A copy carries `data/hartask.sqlite`, and with it that project's `sync_origins`
+identity — two instances would then believe they are the same origin, which is
+the same collision that makes importing a database into the store a bad idea.
+
 ## One store, several projects
 
 Remote rows are scoped by `project_uuid`, so several projects can share one

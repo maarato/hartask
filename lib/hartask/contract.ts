@@ -67,12 +67,16 @@ offered, because the harness scanner does not exist.
 export const HARTASK_FIRST_RUN = `
 This project has just adopted Hartask: there are no tasks and no handoff yet.
 
-Ask the user before doing either of these. Both change their project, and the
-second occupies a port on their machine:
+Ask the user before doing any of these. Each one changes something outside this
+conversation:
 
 1. Whether to migrate an existing task list. Look for tasks.md, TODO.md or
    similar first, and name the actual file and item count in the question.
 2. Whether to start Hartask, with 'npm run dev' inside the hartask folder.
+3. If GET /api/sync says a store is configured, whether to run the first sync.
+   That uploads the whole board off this machine, so it needs its own yes even
+   when the credentials are already in place. Never sync for the first time
+   without asking.
 
 There is no importer on purpose: task files vary too much for a parser to be
 trusted, so you read the file and create the tasks through POST /api/tasks.
@@ -83,6 +87,11 @@ original file, and check GET /api/tasks first so nothing is migrated twice.
 After migrating, ask which task is next and set it to READY: a board that is
 all BACKLOG and DONE leaves current_task null, so the next cold start has
 nothing to point at.
+
+A new project must not set HARTASK_SYNC_PROJECT_ID. That variable is for a
+second machine joining a project that already exists in the store; on a new
+project it makes this board write into another project's scope and merges the
+two. Copying an .env.local from elsewhere is how that happens.
 
 Finish the first run by writing the Project Context and a first checkpoint
 through POST /api/handoff. Full instructions: hartask/docs/FIRST-RUN.md

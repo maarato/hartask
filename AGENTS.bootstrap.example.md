@@ -19,8 +19,9 @@ as unavailable without trying to start it first.
 
 If `GET /api/context` comes back with an `onboarding` block, Hartask has never
 been used here. Follow `./hartask/docs/FIRST-RUN.md`, which covers migrating an
-existing task list — and ask the user before migrating anything or starting the
-server.
+existing task list and connecting a remote store — and ask the user before
+migrating anything, starting the server, or syncing for the first time. That
+last one uploads the board off their machine, so it needs its own yes.
 
 ### At the start of substantial work
 

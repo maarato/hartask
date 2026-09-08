@@ -26,16 +26,20 @@ does not run your work.
 Both are visible changes to the user's project, and the second one occupies a
 port on their machine.
 
-Ask these two questions and wait for an answer:
+Ask these questions and wait for an answer:
 
 1. *"This project has a `tasks.md` with N items. Do you want me to migrate them
    into Hartask?"* — name the actual file and the actual count, so the user
    knows exactly what would be created.
 2. *"Should I start Hartask on http://localhost:43127?"*
+3. Only if `HARTASK_SYNC_URL` is configured: *"Sync will upload this project's
+   board to <the URL>. Should I?"* — this one leaves their machine, so it needs
+   its own yes even when the credentials are already there. Never sync a
+   project for the first time without asking.
 
-If the user declines either one, say what that means — without migration the
-board stays empty, without the server neither of you can read it — and carry on
-with whatever they actually asked for.
+If the user declines any of them, say what that means — without migration the
+board stays empty, without the server neither of you can read it, without sync
+it stays on this machine — and carry on with whatever they actually asked for.
 
 ## Starting the server
 
@@ -126,6 +130,27 @@ curl -X POST http://localhost:43127/api/handoff \
     "agent_run_id": "<your-id>"
   }'
 ```
+
+## Connecting the store, if there is one
+
+`GET /api/sync` says whether this instance is configured and in which mode. If
+it is, and the user agreed, the first sync uploads the board:
+
+```bash
+curl -X POST http://localhost:43127/api/sync   -H 'Content-Type: application/json' -d '{"action":"sync"}'
+```
+
+Two things to get right before that first upload:
+
+- **A new project must not set `HARTASK_SYNC_PROJECT_ID`.** That variable is for
+  a second machine joining a project that already exists in the store. On a new
+  project it makes this board write into another project's scope, merging the
+  two. Copying an `.env.local` from elsewhere is how it happens.
+- **Everything in the board goes up as plain text**, including handoffs, which
+  hold what is broken and why decisions were made. Say so if the project holds
+  anything the user would not put in a shared database.
+
+Full details in `./hartask/docs/SYNC.md`.
 
 From then on the normal loop applies: read `GET /api/context` before
 substantial work, move a task to `IN_PROGRESS` before starting it and to `DONE`

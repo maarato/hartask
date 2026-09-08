@@ -40,6 +40,24 @@ describe('onboarding', () => {
     expect(result?.instructions).toContain('docs/FIRST-RUN.md');
   });
 
+  it('tells the agent about syncing, and that it needs its own permission', () => {
+    const instructions = onboarding()!.instructions;
+
+    // Without this an agent adopting Hartask never learns the store exists,
+    // and the user has to remember on their own.
+    expect(instructions).toMatch(/sync/i);
+    // Whitespace-tolerant: the source wraps, and the rule is what matters.
+    expect(instructions.replace(/\s+/g, ' ')).toMatch(
+      /never sync for the first time without asking/i
+    );
+  });
+
+  it('warns about the setting that would merge two projects into one', () => {
+    // Copying an .env.local from another project is how this happens, and the
+    // damage is two boards sharing one scope in the store.
+    expect(onboarding()!.instructions).toContain('HARTASK_SYNC_PROJECT_ID');
+  });
+
   it('returns nothing once the project is in use', () => {
     createTask({ title: 'a task' });
     expect(onboarding()).toBeNull();
