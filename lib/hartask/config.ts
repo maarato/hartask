@@ -40,7 +40,19 @@ export const DEFAULT_CONFIG: HartaskConfig = {
   syncUrl: '',
   syncToken: '',
   syncProjectId: '',
-  harnessScan: { enabled: true, paths: [] }
+  // Relative to projectRoot, so that one setting decides where the project is.
+  harnessScan: {
+    enabled: true,
+    paths: [
+      'AGENTS.md',
+      'CLAUDE.md',
+      '.claude',
+      '.cursor',
+      '.codex',
+      '.mcp.json',
+      '.github/copilot-instructions.md'
+    ]
+  }
 };
 
 /**

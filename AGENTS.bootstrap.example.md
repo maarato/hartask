@@ -84,7 +84,11 @@ Each checkpoint is a new row; the most recent one is the current handoff.
 Write one after meaningful progress, an important decision, a discovered
 blocker or a completed task — not after every file write.
 
-### Not available yet
+### What applies to this project
 
-`/api/harness` is a stub and `hartask_get_harness` is not offered: the harness
-scanner does not exist. Everything else described here works.
+```
+GET  /api/harness    instructions, skills, agents, MCP servers and hooks found here
+POST /api/harness    scan the disk again
+```
+
+Everything described in this file works.

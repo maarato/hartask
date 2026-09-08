@@ -39,6 +39,8 @@ Available today over HTTP on this same server:
   GET   /api/handoff               current handoff (?history=true for previous checkpoints)
   POST  /api/handoff               { current_task, done, current_state, next, problems,
                                      important_files, important_decisions, agent_run_id }
+  GET   /api/harness               instructions, skills, agents, MCP servers, hooks
+  POST  /api/harness               rescan the project's harness
   GET   /api/health
 
 Status transitions record events automatically; do not log them separately.
@@ -53,8 +55,8 @@ MCP is served at /mcp and /api/mcp — the same server on both. Prefer it over
 raw HTTP when your host supports it: the tools are the same operations, and
 resources under hartask:// give you the state without a call.
 
-Not implemented yet: /api/harness is a stub, and hartask_get_harness is not
-offered, because the harness scanner does not exist.
+hartask_get_harness reports what the last scan found; pass rescan to read the
+disk again. It answers what is configured, not what it means.
 `;
 
 /**

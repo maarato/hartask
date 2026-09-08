@@ -7,13 +7,13 @@
   "harnessScan": {
     "enabled": true,
     "paths": [
-      "../AGENTS.md",
-      "../CLAUDE.md",
-      "../.agents",
-      "../.claude",
-      "../.cursor",
-      "../.codex",
-      "../docs"
+      "AGENTS.md",
+      "CLAUDE.md",
+      ".claude",
+      ".cursor",
+      ".codex",
+      ".mcp.json",
+      ".github/copilot-instructions.md"
     ]
   }
 }

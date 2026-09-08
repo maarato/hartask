@@ -903,6 +903,8 @@ hartask/
 │   │   ├── client.ts
 │   │   └── schema.sql
 │   ├── hartask/
+│   │   ├── harness/
+│   │   │   └── scanner.ts
 │   │   ├── repositories/
 │   │   │   ├── handoff.ts
 │   │   │   ├── projects.ts
@@ -999,9 +1001,13 @@ Working end to end:
   across the project;
 - `GET/POST /api/tasks` and `GET/PATCH /api/tasks/[id]` (accepts `TASK-001` or a
   numeric id) with request validation;
-- MCP over Streamable HTTP at `/mcp`: 14 semantic tools over the repositories
-  and six `hartask://` resources. `hartask_get_harness` is deliberately not
-  offered, because the scanner behind it does not exist;
+- MCP over Streamable HTTP at `/mcp`: 15 semantic tools over the repositories
+  and seven `hartask://` resources;
+- harness scanner: reads the project's instructions, skills, agents, commands,
+  hooks and MCP servers off disk, pulling declared servers and hook events out
+  of the settings files that declare them. It stores path, scope and a content
+  hash, never the content — the files stay the only copy of themselves — and
+  the rows do not sync, because they describe one machine's disk;
 - Prompt Stack: a queue of agent-executable instructions with an atomic claim,
   runs kept as rows so an instruction that needed three attempts still shows
   all three, and a `/prompts` view. `POST /api/prompts/claim` is the operation
@@ -1023,10 +1029,6 @@ Working end to end:
   file; the libSQL adapter is exercised through a `file:` URL, which is the
   same code path Turso takes.
 
-Schema only, no runtime code yet:
-
-- Harness scan metadata schema.
-
 Documentation and design:
 
 - Harness view skeleton (static placeholder);
@@ -1042,7 +1044,6 @@ Documentation and design:
 The starter intentionally leaves these as the next development phase:
 
 - cascade/grid switch;
-- harness scanner;
 - user-level skill discovery;
 - Mermaid generation/rendering;
 - generated agent adapters;

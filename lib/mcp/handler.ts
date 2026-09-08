@@ -65,8 +65,9 @@ export function describeMcp(): Response {
       'hartask://tasks',
       'hartask://tasks/current',
       'hartask://prompts/queue',
-      'hartask://history/recent'
+      'hartask://history/recent',
+      'hartask://harness'
     ],
-    not_implemented: ['hartask_get_harness — the harness scanner does not exist yet']
+    not_implemented: []
   });
 }

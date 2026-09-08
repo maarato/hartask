@@ -70,7 +70,15 @@ copied into other repositories.
    `hartask_create_prompt` are not in the README's list — an oversight there,
    since `docs/FIRST-RUN.md` asks an agent to migrate an existing task file and
    without them it could only read.
-11. Implement project harness scanner.
+11. ~~Implement the project harness scanner.~~
+    `lib/hartask/harness/scanner.ts` classifies by path, and expands a settings
+    file into the MCP servers and hook events it declares — listing only the
+    file would hide what the agent can actually reach. Scan paths hang off
+    `projectRoot` so one setting decides where the project is. A rescan replaces
+    rather than merges, or a component deleted from disk would stay in the view
+    forever, and the scan summary keeps the count of changed hashes.
+    `hartask_get_harness` is now offered, and reports an unscanned project as
+    unscanned rather than as empty.
 12. Add generated Mermaid diagrams for Summary and Harness.
 13. Add optional adapters/bootstrap injection for AGENTS.md, Claude, Cursor and
     Codex.
@@ -89,6 +97,11 @@ Archiving is attributed to `auto-archive` on each event, so a board that
 emptied itself is distinguishable from one someone cleared by hand.
 
 ## Known gaps in the current layer
+
+- The scanner only looks at project scope. User-level skills and agents, under
+  the home directory, are not read: that is outside the project, and reading it
+  should be something the user turns on rather than a default.
+- There is no filesystem watcher, so the harness is what the last scan found.
 
 - The repository layer is covered by `npm test`; the API routes and the UI are
   not. Both were verified by hand against a running server, which is weaker.

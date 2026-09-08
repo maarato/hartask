@@ -93,12 +93,19 @@ describe('tools', () => {
         'hartask_start_session',
         'hartask_create_task',
         'hartask_claim_next_prompt',
-        'hartask_update_handoff'
+        'hartask_update_handoff',
+        'hartask_get_harness'
       ])
     );
-    // The harness scanner does not exist; offering the tool would have an agent
-    // call it and act on the emptiness.
-    expect(names).not.toContain('hartask_get_harness');
+  });
+
+  it('reports an unscanned harness as unscanned rather than as empty', async () => {
+    const { data } = await callTool('hartask_get_harness');
+
+    // "No components" and "nobody has looked" are different answers, and an
+    // agent acting on the first when the second is true would be wrong.
+    expect(data.scanned).toBe(false);
+    expect(data.hint).toMatch(/rescan/i);
   });
 
   it('starts a session on a fresh project with the onboarding attached', async () => {

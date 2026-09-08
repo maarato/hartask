@@ -2,6 +2,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { HARTASK_AGENT_CONTRACT } from '@/lib/hartask/contract';
 import { onboarding } from '@/lib/hartask/onboarding';
+import {
+  lastHarnessScan,
+  listHarnessComponents,
+  runHarnessScan
+} from '@/lib/hartask/repositories/harness';
 import { createHandoff, getLatestHandoff } from '@/lib/hartask/repositories/handoff';
 import {
   claimNextPrompt,
@@ -32,10 +37,6 @@ import { TASK_STATUSES } from '@/lib/hartask/types';
  * The tools are the semantic operations the README asks for — complete_task,
  * not query_sql. An agent depends on Hartask's concepts, so the database schema
  * stays free to change underneath it.
- *
- * `hartask_get_harness` is deliberately absent. The harness scanner is not
- * built, and a tool that answers nothing useful is worse than one that is not
- * offered: an agent would call it and act on the emptiness.
  *
  * create_task and create_prompt are not in the README's list, which is an
  * oversight there rather than a decision: docs/FIRST-RUN.md tells an agent to
@@ -342,6 +343,39 @@ export function createHartaskMcpServer(): McpServer {
   );
 
   // -------------------------------------------------------------------------
+  // Harness
+  // -------------------------------------------------------------------------
+
+  server.registerTool(
+    'hartask_get_harness',
+    {
+      description:
+        'What instructions, skills, agents, MCP servers and hooks apply to this project. Reports what was found on disk, not what it means.',
+      inputSchema: {
+        rescan: z.boolean().optional().describe('Read the disk again instead of the stored scan')
+      }
+    },
+    async ({ rescan }) => {
+      if (rescan) return json(runHarnessScan());
+
+      const scan = lastHarnessScan();
+      const components = listHarnessComponents();
+      if (!scan) {
+        return json({
+          components,
+          scanned: false,
+          hint: 'Nothing has been scanned yet. Call again with rescan true.'
+        });
+      }
+      return json({
+        components,
+        scanned_at: scan.finished_at ?? scan.started_at,
+        summary: JSON.parse(scan.summary_json ?? 'null')
+      });
+    }
+  );
+
+  // -------------------------------------------------------------------------
   // Handoff
   // -------------------------------------------------------------------------
 
@@ -413,6 +447,13 @@ export function createHartaskMcpServer(): McpServer {
     listEvents({ limit: 50 })
   );
 
+  resource(
+    'hartask://harness',
+    'harness',
+    'Instructions, skills, agents, MCP servers and hooks found in this project',
+    () => ({ components: listHarnessComponents(), scanned_at: lastHarnessScan()?.finished_at ?? null })
+  );
+
   return server;
 }
 
@@ -432,7 +473,8 @@ export function hartaskToolNames(): string[] {
     'hartask_claim_next_prompt',
     'hartask_complete_prompt',
     'hartask_fail_prompt',
-    'hartask_update_handoff'
+    'hartask_update_handoff',
+    'hartask_get_harness'
   ];
 }
 
