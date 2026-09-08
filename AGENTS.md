@@ -61,7 +61,10 @@ variable still wins over the file.
 npm run typecheck && npm test && npm run build
 ```
 
-All three must pass. Tests live in `tests/` and run on vitest; each test file
+All three must pass. **Stop the dev server first**: `next build` writes over
+the same `.next` directory `next dev` is serving from, and the running server
+then fails with `Cannot find module './chunks/vendor-chunks/next.js'`. The fix
+is to delete `.next` and restart, but not doing it is cheaper. Tests live in `tests/` and run on vitest; each test file
 gets its own temporary database through `HARTASK_DATABASE`, set in
 `tests/setup.ts`, so they never touch the project's board. They cover the
 repository layer: id generation, event recording, ordering, the tree, and the
