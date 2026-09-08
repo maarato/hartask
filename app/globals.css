@@ -135,6 +135,16 @@ summary { cursor:pointer; }
 .plain { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; }
 .plain li { padding-left:14px; text-indent:-14px; }
 .plain li::before { content:'— '; color:#9aa4b2; }
+/* A diagram scrolls inside its own box: the page must never scroll sideways. */
+.diagram { overflow-x:auto; padding:4px 0; }
+.diagram svg { max-width:100%; height:auto; }
+/* What shows before the SVG is ready, and instead of it if drawing fails. */
+.diagram-source {
+  margin:0; padding:12px; overflow-x:auto;
+  background:#0e1216; border:1px solid #2a2f37; border-radius:8px;
+  font-size:12px; line-height:1.5; color:#9aa4b2;
+}
+
 .chips { display:flex; flex-wrap:wrap; gap:6px; }
 .chips code { font-size:12px; }
 

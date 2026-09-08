@@ -233,6 +233,10 @@ It should contain only the information required to regain orientation, for examp
 - current overall maturity/status;
 - one to three simple diagrams when they materially help.
 
+A fenced ```mermaid block is drawn as a diagram in Summary; everything
+around it stays the text it was. A diagram that fails to draw falls back to
+its own source, which still says what the picture meant.
+
 Example:
 
 ```text
@@ -996,6 +1000,9 @@ Working end to end:
   opt-in that does it without being asked;
 - Summary view backed by SQLite: editable Project Context plus the last
   handoff, answering the cold-start questions;
+- Mermaid diagrams: Summary draws any ```mermaid block in the Project Context,
+  and Harness draws itself from the scan, so that picture cannot drift from
+  what is on disk;
 - task detail at `/tasks/[id]`: the task's own notes and its complete event
   timeline, which the board cannot show because it only lists the last events
   across the project;
@@ -1045,7 +1052,6 @@ The starter intentionally leaves these as the next development phase:
 
 - cascade/grid switch;
 - user-level skill discovery;
-- Mermaid generation/rendering;
 - generated agent adapters;
 - filesystem watching;
 - git metadata enrichment;

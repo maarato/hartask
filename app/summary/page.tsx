@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { Mermaid } from '@/components/mermaid';
+import { splitProse } from '@/lib/hartask/prose';
 import { getLatestHandoff, listHandoffs } from '@/lib/hartask/repositories/handoff';
 import { ensureProject } from '@/lib/hartask/repositories/projects';
 import { getCurrentTask } from '@/lib/hartask/repositories/tasks';
@@ -91,7 +93,17 @@ function ProjectContext({ summary }: { summary: string | null }) {
         </p>
       </header>
 
-      {summary ? <div className="prose">{summary}</div> : null}
+      {summary
+        ? splitProse(summary).map((segment, index) =>
+            segment.type === 'mermaid' ? (
+              <Mermaid key={index} chart={segment.content} />
+            ) : (
+              <div key={index} className="prose">
+                {segment.content}
+              </div>
+            )
+          )
+        : null}
 
       {/* Reading is the common case, so editing is behind a disclosure — except
           when there is nothing to read yet. */}
@@ -104,6 +116,9 @@ function ProjectContext({ summary }: { summary: string | null }) {
             placeholder="Propósito, arquitectura, conceptos principales y madurez actual."
             rows={12}
           />
+          <span className="muted small">
+            Un bloque <code>```mermaid</code> se dibuja como diagrama; el resto queda como texto.
+          </span>
           <button type="submit">Guardar Project Context</button>
         </form>
       </details>

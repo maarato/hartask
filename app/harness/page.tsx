@@ -1,4 +1,7 @@
+import { Mermaid } from '@/components/mermaid';
 import { loadConfig, projectRootPath } from '@/lib/hartask/config';
+import { harnessDiagram } from '@/lib/hartask/harness/diagram';
+import { ensureProject } from '@/lib/hartask/repositories/projects';
 import {
   lastHarnessScan,
   listHarnessComponents,
@@ -51,6 +54,8 @@ export default function HarnessPage() {
   const present = GROUPS.filter((group) =>
     components.some((component) => component.type === group.type)
   );
+  // Generated from the scan, so it cannot fall out of step with the disk.
+  const diagram = harnessDiagram(components, ensureProject().name);
 
   return (
     <section className="stack sections">
@@ -73,6 +78,16 @@ export default function HarnessPage() {
         </span>
         <button type="submit">{scan ? 'Volver a escanear' : 'Escanear'}</button>
       </form>
+
+      {diagram ? (
+        <article className="card stack">
+          <header className="section-head">
+            <h2>Diagrama</h2>
+            <p className="muted small">Lo que este proyecto le aporta al agente.</p>
+          </header>
+          <Mermaid chart={diagram} />
+        </article>
+      ) : null}
 
       {present.length ? (
         present.map((group) => (

@@ -80,11 +80,12 @@ archiving rules. Behaviour asserted in a commit message belongs in a test.
   `lib/hartask/repositories/*`; they never write queries inline.
 - **Server-rendered by default.** Pages are server components and mutations go
   through server actions; disclosure uses native `<details>`/`<summary>`,
-  including the task cards, which are collapsed by default. `components/nav.tsx`
-  is the single `'use client'` component, because a layout does not receive the
-  pathname on the server and the tab bar has to know which tab is active. Reach
-  for a client component only when the server genuinely cannot answer, and say
-  why in the file.
+  including the task cards, which are collapsed by default. There are exactly two
+  `'use client'` components, and each says in the file why the server could not
+  answer: `components/nav.tsx`, because a layout does not receive the pathname
+  and the tab bar has to know which tab is active, and `components/mermaid.tsx`,
+  because Mermaid draws in the browser. Reach for a client component only when
+  the server genuinely cannot answer, and say why in the file.
 - **Any page or route that reads the database sets `export const dynamic =
   'force-dynamic'`**, otherwise Next tries to prerender it at build time.
 - **`better-sqlite3` is a native addon** and is listed in

@@ -79,7 +79,10 @@ copied into other repositories.
     forever, and the scan summary keeps the count of changed hashes.
     `hartask_get_harness` is now offered, and reports an unscanned project as
     unscanned rather than as empty.
-12. Add generated Mermaid diagrams for Summary and Harness.
+12. ~~Add generated Mermaid diagrams for Summary and Harness.~~ **Done.**
+    Harness draws itself from the scan, so the picture cannot drift from the
+    disk; Summary draws whatever ```mermaid block the Project Context contains.
+    Both degrade to the diagram source rather than to an empty box.
 13. Add optional adapters/bootstrap injection for AGENTS.md, Claude, Cursor and
     Codex.
 14. Add Stop/session-end integration where a host supports hooks.
