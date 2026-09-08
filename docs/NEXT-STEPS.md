@@ -58,9 +58,18 @@ copied into other repositories.
    A failed attempt returns the prompt to the queue by default and keeps the
    attempt, because the queue exists for instructions that need several tries.
    `retry: false` gives up instead.
-9. Replace `/api/mcp` placeholder with a real MCP Streamable HTTP endpoint on the
-   same port.
-10. Expose semantic Hartask MCP tools over the repositories that now exist.
+9. ~~Replace the `/api/mcp` placeholder with a real MCP Streamable HTTP endpoint
+   on the same port.~~
+   `/mcp` and `/api/mcp` mount the same server. The SDK's own transport wants
+   Node's IncomingMessage/ServerResponse, which an App Router handler does not
+   have, so `lib/mcp/transport.ts` bridges one message in and one out and lets
+   the SDK own every protocol decision. Stateless: each POST is a complete
+   exchange.
+10. ~~Expose semantic Hartask MCP tools over the repositories.~~
+   14 tools and six `hartask://` resources. `hartask_create_task` and
+   `hartask_create_prompt` are not in the README's list — an oversight there,
+   since `docs/FIRST-RUN.md` asks an agent to migrate an existing task file and
+   without them it could only read.
 11. Implement project harness scanner.
 12. Add generated Mermaid diagrams for Summary and Harness.
 13. Add optional adapters/bootstrap injection for AGENTS.md, Claude, Cursor and

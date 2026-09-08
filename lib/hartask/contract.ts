@@ -49,8 +49,12 @@ cannot, and a double claim is recorded rather than prevented. A failed attempt
 returns the prompt to the queue by default, because the same instruction often
 needs several tries.
 
-Not implemented yet: /api/harness is a stub, and this /api/mcp route is a
-placeholder rather than an MCP transport.
+MCP is served at /mcp and /api/mcp — the same server on both. Prefer it over
+raw HTTP when your host supports it: the tools are the same operations, and
+resources under hartask:// give you the state without a call.
+
+Not implemented yet: /api/harness is a stub, and hartask_get_harness is not
+offered, because the harness scanner does not exist.
 `;
 
 /**

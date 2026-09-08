@@ -808,7 +808,7 @@ Conceptually:
 └── /health       healthcheck
 ```
 
-This starter currently exposes a placeholder MCP response at `/api/mcp`. A real MCP Streamable HTTP implementation should replace/alias it to `/mcp` while staying on the same Next.js server and port.
+MCP is served at `/mcp`, with `/api/mcp` mounting the same server, both on the same Next.js process and port.
 
 The project should continue to avoid requiring a second port unless a future feature makes it unavoidable.
 
@@ -894,6 +894,11 @@ hartask/
 │   ├── NEXT-STEPS.md
 │   └── SYNC.md
 ├── lib/
+│   ├── mcp/
+│   │   ├── handler.ts
+│   │   ├── server.ts
+│   │   ├── tools.ts
+│   │   └── transport.ts
 │   ├── db/
 │   │   ├── client.ts
 │   │   └── schema.sql
@@ -994,6 +999,9 @@ Working end to end:
   across the project;
 - `GET/POST /api/tasks` and `GET/PATCH /api/tasks/[id]` (accepts `TASK-001` or a
   numeric id) with request validation;
+- MCP over Streamable HTTP at `/mcp`: 14 semantic tools over the repositories
+  and six `hartask://` resources. `hartask_get_harness` is deliberately not
+  offered, because the scanner behind it does not exist;
 - Prompt Stack: a queue of agent-executable instructions with an atomic claim,
   runs kept as rows so an instruction that needed three attempts still shows
   all three, and a `/prompts` view. `POST /api/prompts/claim` is the operation
@@ -1023,7 +1031,7 @@ Documentation and design:
 
 - Harness view skeleton (static placeholder);
 - Hartask Agent Contract;
-- proposed MCP tool names (a list of names, not an MCP implementation);
+
 - example project bootstrap instructions;
 - implementation roadmap.
 
@@ -1034,8 +1042,6 @@ Documentation and design:
 The starter intentionally leaves these as the next development phase:
 
 - cascade/grid switch;
-- real MCP protocol transport;
-- MCP resources/prompts;
 - harness scanner;
 - user-level skill discovery;
 - Mermaid generation/rendering;

@@ -4,10 +4,16 @@ This project uses Hartask for local task, state and project-continuity
 management. It lives in `./hartask/` and stores its state in a local SQLite
 database.
 
-Hartask is reached over HTTP on `http://localhost:43127`. If it does not
-respond, start it with `npm run dev` inside `./hartask/` — do not read
-`./hartask/data/hartask.sqlite` directly, and do not treat Hartask as
-unavailable without trying to start it first.
+Hartask speaks MCP at `http://localhost:43127/mcp`. If your host can add an MCP
+server, use that: `hartask_start_session` for the briefing,
+`hartask_claim_next_prompt` for queued work, `hartask_update_handoff` before you
+stop, and `hartask://` resources for state you only need to read.
+
+Otherwise the same operations are plain HTTP on the same port, described below.
+
+If Hartask does not respond, start it with `npm run dev` inside `./hartask/` —
+do not read `./hartask/data/hartask.sqlite` directly, and do not treat Hartask
+as unavailable without trying to start it first.
 
 ### First time in this project
 
@@ -79,5 +85,5 @@ blocker or a completed task — not after every file write.
 
 ### Not available yet
 
-`/api/harness` is a stub and `/api/mcp` is a placeholder, not an MCP transport.
-Everything else described here works.
+`/api/harness` is a stub and `hartask_get_harness` is not offered: the harness
+scanner does not exist. Everything else described here works.
