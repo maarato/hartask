@@ -767,6 +767,11 @@ database holds project state that must not be discarded to pick up a change.
 The mechanism is additive only; anything that rewrites or drops data needs a
 real versioned migration.
 
+`hartask.config.json` is written by the settings page and is git-ignored by
+default, the same way the database is: it holds one installation's preferences.
+A project that wants to share settings across a team — once the harness scanner
+gives `harnessScan.paths` a meaning — can un-ignore it.
+
 The SQLite file should normally live at:
 
 ```text
@@ -870,6 +875,7 @@ hartask/
 │   │   └── tasks/
 │   ├── harness/
 │   ├── summary/
+│   ├── settings/
 │   ├── tasks/
 │   │   └── [id]/
 │   ├── globals.css
@@ -902,6 +908,7 @@ hartask/
 │   └── seed.mjs
 ├── tests/
 │   ├── handoff.repository.test.ts
+│   ├── settings.test.ts
 │   ├── helpers.ts
 │   ├── setup.ts
 │   └── tasks.repository.test.ts
@@ -955,9 +962,12 @@ Working end to end:
 - SQLite connection layer (`lib/db/client.ts`) with WAL, foreign keys and
   automatic schema bootstrap;
 - config loader for `hartask.config.json`, with environment overrides
-  (`HARTASK_DATABASE`, `HARTASK_PROJECT_NAME`,
+  (`HARTASK_CONFIG`, `HARTASK_DATABASE`, `HARTASK_PROJECT_NAME`,
   `HARTASK_ARCHIVE_REMINDER_THRESHOLD`) taking precedence, so a single run can
   be redirected without editing the file;
+- settings page at `/settings` writing that file, editing only what takes
+  effect immediately and warning when an environment variable is overriding a
+  value, plus `GET/PATCH /api/settings`;
 - task repository: list, hierarchy tree, get, create, update, status
   transitions, notes and events;
 - project repository (single project row, created on first run);
@@ -980,7 +990,8 @@ Working end to end:
 - `GET /api/context` returning real project, current task, counts, events and
   the current handoff — the cold-start briefing an agent reads;
 - database initialization and seed scripts;
-- 32 repository tests on vitest, each file against its own temporary database.
+- 47 tests on vitest, each file against its own temporary database and config
+  file.
 
 Schema only, no runtime code yet:
 

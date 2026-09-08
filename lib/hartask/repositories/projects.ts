@@ -33,3 +33,17 @@ export function updateProjectSummary(summary: string): Project {
   ).run(summary, project.id);
   return db.prepare(`SELECT * FROM projects WHERE id = ?`).get(project.id) as Project;
 }
+
+/**
+ * The project row keeps its own name, so renaming from settings has to reach
+ * it too — otherwise the change would save and nothing visible would change.
+ */
+export function renameProject(name: string): Project {
+  const project = ensureProject();
+  const db = getDb();
+  db.prepare(`UPDATE projects SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(
+    name,
+    project.id
+  );
+  return db.prepare(`SELECT * FROM projects WHERE id = ?`).get(project.id) as Project;
+}

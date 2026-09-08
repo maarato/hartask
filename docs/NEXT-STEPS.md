@@ -37,6 +37,15 @@ copied into other repositories.
    notes and its complete event timeline, with status transitions rendered from
    the recorded payload. The board links to it from each public id.
 
+7. ~~Add a settings page.~~
+   `/settings` writes `hartask.config.json`, chosen over a settings table
+   because the loader already resolves env > file > default and a table would
+   have added a fourth level to that chain. Only values that take effect
+   immediately are editable; port, database and project root are read at boot
+   and are shown read-only. A value being overridden by an environment variable
+   is flagged on the field, because otherwise it would save and appear to do
+   nothing.
+
 ## Next
 
 7. Implement Prompt Stack and the atomic `claim_next_prompt` transaction.

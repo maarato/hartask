@@ -41,8 +41,13 @@ defaults in `lib/hartask/config.ts`. `HARTASK_DATABASE` points the instance at
 another database — which is how the tests get an isolated one —
 `HARTASK_PROJECT_NAME` renames the project, and
 `HARTASK_ARCHIVE_REMINDER_THRESHOLD` sets how many archivable root tasks the
-board tolerates before it suggests archiving. A settings page (`TASK-037`) will
-eventually write the config file; the variables stay as the per-run override.
+board tolerates before it suggests archiving, and `HARTASK_CONFIG` points at a
+different config file — which is how the tests avoid writing the project's own.
+
+`/settings` writes the config file. Only settings that take effect immediately
+are editable there; anything read at boot stays read-only. When adding a
+setting, decide which of the two it is, and remember that an environment
+variable still wins over the file.
 
 ## Verifying a change
 

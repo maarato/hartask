@@ -11,7 +11,7 @@ export type HartaskConfig = {
   harnessScan: { enabled: boolean; paths: string[] };
 };
 
-const DEFAULTS: HartaskConfig = {
+export const DEFAULT_CONFIG: HartaskConfig = {
   port: 43127,
   projectRoot: '..',
   database: './data/hartask.sqlite',
@@ -22,16 +22,24 @@ const DEFAULTS: HartaskConfig = {
 
 /**
  * Environment overrides win over hartask.config.json, which wins over the
- * defaults. A settings page will eventually write the config file; the
- * variables stay as the escape hatch for a single run.
+ * defaults. The settings page writes the config file; the variables stay as
+ * the escape hatch for a single run, which is why the page has to say when one
+ * of them is winning.
  */
-const ENV_KEYS = {
+export const ENV_KEYS = {
   database: 'HARTASK_DATABASE',
   projectName: 'HARTASK_PROJECT_NAME',
   archiveReminderThreshold: 'HARTASK_ARCHIVE_REMINDER_THRESHOLD'
 } as const;
 
+export type EnvBackedKey = keyof typeof ENV_KEYS;
+
 let cached: HartaskConfig | null = null;
+
+/** The config file this instance reads and writes. */
+export function configPath(): string {
+  return resolve(process.cwd(), process.env.HARTASK_CONFIG || 'hartask.config.json');
+}
 
 function readNumberEnv(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -45,25 +53,33 @@ function readNumberEnv(name: string, fallback: number): number {
   return parsed;
 }
 
-/** Reads hartask.config.json when present; falls back to defaults otherwise. */
+/**
+ * What is actually written in the config file, with no defaults or environment
+ * applied. The settings page needs this so that saving a value never
+ * accidentally persists whatever an environment variable happened to override
+ * it with.
+ */
+export function readStoredConfig(): Partial<HartaskConfig> {
+  const file = configPath();
+  if (!existsSync(file)) return {};
+
+  try {
+    return JSON.parse(readFileSync(file, 'utf8')) as Partial<HartaskConfig>;
+  } catch (error) {
+    console.warn(`[hartask] ${file} is not valid JSON, using defaults:`, error);
+    return {};
+  }
+}
+
+/** Effective configuration: defaults, then the config file, then the env. */
 export function loadConfig(): HartaskConfig {
   if (cached) return cached;
 
-  const file = resolve(process.cwd(), 'hartask.config.json');
-  let overrides: Partial<HartaskConfig> = {};
-
-  if (existsSync(file)) {
-    try {
-      overrides = JSON.parse(readFileSync(file, 'utf8')) as Partial<HartaskConfig>;
-    } catch (error) {
-      console.warn(`[hartask] hartask.config.json is not valid JSON, using defaults:`, error);
-    }
-  }
-
+  const stored = readStoredConfig();
   const merged: HartaskConfig = {
-    ...DEFAULTS,
-    ...overrides,
-    harnessScan: { ...DEFAULTS.harnessScan, ...overrides.harnessScan }
+    ...DEFAULT_CONFIG,
+    ...stored,
+    harnessScan: { ...DEFAULT_CONFIG.harnessScan, ...stored.harnessScan }
   };
 
   cached = {
@@ -78,9 +94,16 @@ export function loadConfig(): HartaskConfig {
   return cached;
 }
 
-/** Drops the memoized config. Only needed by tests that change the env. */
+/** Drops the memoized config, so the next read picks up a saved change. */
 export function resetConfigCache(): void {
   cached = null;
+}
+
+/** The environment value winning over the stored one, if there is one. */
+export function envOverrideFor(key: EnvBackedKey): { name: string; value: string } | null {
+  const name = ENV_KEYS[key];
+  const value = process.env[name];
+  return value !== undefined && value.trim() !== '' ? { name, value } : null;
 }
 
 export function databasePath(): string {

@@ -117,6 +117,11 @@ summary { cursor:pointer; }
   .handoff .next-step { margin-left:0; }
 }
 
+/* Labelled form field: the label sits above its control instead of relying on
+   a placeholder, which disappears the moment someone types. */
+.field { gap:6px; }
+.field > span:first-child { font-size:13px; color:#9aa4b2; }
+
 .plain { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; }
 .plain li { padding-left:14px; text-indent:-14px; }
 .plain li::before { content:'— '; color:#9aa4b2; }
