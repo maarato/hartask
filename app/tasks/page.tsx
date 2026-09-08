@@ -276,6 +276,11 @@ export default function TasksPage() {
             {archived.length ? ', restaura una archivada abajo' : ''} o ejecuta{' '}
             <code>npm run db:seed</code> para cargar ejemplos.
           </p>
+          <p className="muted">
+            ¿Primera vez en este proyecto? Un agente puede migrar un{' '}
+            <code>tasks.md</code> existente siguiendo{' '}
+            <code>docs/FIRST-RUN.md</code>; <code>GET /api/context</code> se lo indica solo.
+          </p>
         </article>
       ) : (
         <div className="stack">

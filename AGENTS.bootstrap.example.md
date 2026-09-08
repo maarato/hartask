@@ -9,6 +9,13 @@ respond, start it with `npm run dev` inside `./hartask/` — do not read
 `./hartask/data/hartask.sqlite` directly, and do not treat Hartask as
 unavailable without trying to start it first.
 
+### First time in this project
+
+If `GET /api/context` comes back with an `onboarding` block, Hartask has never
+been used here. Follow `./hartask/docs/FIRST-RUN.md`, which covers migrating an
+existing task list — and ask the user before migrating anything or starting the
+server.
+
 ### At the start of substantial work
 
 ```

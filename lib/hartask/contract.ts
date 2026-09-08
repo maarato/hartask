@@ -41,3 +41,34 @@ Not implemented yet: /api/prompts and /api/harness are stubs, and this /api/mcp
 route is a placeholder rather than an MCP transport. There is no prompt queue to
 claim from, so rule 2 above currently applies to tasks only.
 `;
+
+/**
+ * Returned by /api/context while the project has no tasks and no handoff.
+ *
+ * An agent following the bootstrap already calls that endpoint before
+ * substantial work, so a first run is discovered by the call it was going to
+ * make anyway — no extra file it has to be told to read.
+ */
+export const HARTASK_FIRST_RUN = `
+This project has just adopted Hartask: there are no tasks and no handoff yet.
+
+Ask the user before doing either of these. Both change their project, and the
+second occupies a port on their machine:
+
+1. Whether to migrate an existing task list. Look for tasks.md, TODO.md or
+   similar first, and name the actual file and item count in the question.
+2. Whether to start Hartask, with 'npm run dev' inside the hartask folder.
+
+There is no importer on purpose: task files vary too much for a parser to be
+trusted, so you read the file and create the tasks through POST /api/tasks.
+Checked items map to DONE and unchecked to BACKLOG; indentation becomes
+hierarchy through parent_id. Do not invent tasks, do not edit or delete the
+original file, and check GET /api/tasks first so nothing is migrated twice.
+
+After migrating, ask which task is next and set it to READY: a board that is
+all BACKLOG and DONE leaves current_task null, so the next cold start has
+nothing to point at.
+
+Finish the first run by writing the Project Context and a first checkpoint
+through POST /api/handoff. Full instructions: hartask/docs/FIRST-RUN.md
+`;

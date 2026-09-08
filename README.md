@@ -559,7 +559,10 @@ It runs in ./hartask/ and answers on http://localhost:43127.
 - Never access hartask.sqlite directly.
 ```
 
-See `AGENTS.bootstrap.example.md` for the full version.
+See `AGENTS.bootstrap.example.md` for the full version, and
+`docs/FIRST-RUN.md` for what an agent should do the first time it finds a
+project that has just adopted Hartask — including migrating an existing
+`tasks.md`, and asking the user before doing so.
 
 The bootstrap must describe the interface that actually exists. Once the MCP
 transport lands, the same pointer becomes a list of `hartask_*` tools; until
@@ -886,6 +889,7 @@ hartask/
 ├── data/
 ├── docs/
 │   ├── AGENT-SKILLS.md
+│   ├── FIRST-RUN.md
 │   └── NEXT-STEPS.md
 ├── lib/
 │   ├── db/
@@ -908,6 +912,7 @@ hartask/
 │   └── seed.mjs
 ├── tests/
 │   ├── handoff.repository.test.ts
+│   ├── onboarding.test.ts
 │   ├── settings.test.ts
 │   ├── helpers.ts
 │   ├── setup.ts
@@ -990,7 +995,10 @@ Working end to end:
 - `GET /api/context` returning real project, current task, counts, events and
   the current handoff — the cold-start briefing an agent reads;
 - database initialization and seed scripts;
-- 47 tests on vitest, each file against its own temporary database and config
+- first-run onboarding: `GET /api/context` returns set-up instructions while
+  the project has no tasks and no handoff, so an agent adopting Hartask
+  discovers `docs/FIRST-RUN.md` through the call it was already making;
+- 53 tests on vitest, each file against its own temporary database and config
   file.
 
 Schema only, no runtime code yet:
