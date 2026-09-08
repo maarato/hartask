@@ -74,12 +74,18 @@ const TASK_SELECT = `
   LEFT JOIN tasks p ON p.id = t.parent_id
 `;
 
-/** Everything written locally after the given clock value. */
+/**
+ * Everything written locally at or after the given clock value.
+ *
+ * The bound is inclusive on purpose: rows that existed before sync was added
+ * were stamped by the migration with lamport 0, so an exclusive `> 0` would
+ * have quietly excluded every task a project already had.
+ */
 export function exportChangeset(since = 0): Changeset {
   const db = getDb();
   const origin = localOrigin();
 
-  const tasks = db.prepare(`${TASK_SELECT} WHERE t.lamport > ?`).all(since) as TaskRow[];
+  const tasks = db.prepare(`${TASK_SELECT} WHERE t.lamport >= ?`).all(since) as TaskRow[];
 
   // Everything leaving here is now a version a peer knows about, so later local
   // edits are distinguishable from it.
@@ -91,7 +97,7 @@ export function exportChangeset(since = 0): Changeset {
     db
       .prepare(
         `SELECT r.*, t.uuid AS task_uuid FROM ${table} r
-         LEFT JOIN tasks t ON t.id = r.${linkColumn} WHERE r.lamport > ?`
+         LEFT JOIN tasks t ON t.id = r.${linkColumn} WHERE r.lamport >= ?`
       )
       .all(since) as AppendRow[];
 

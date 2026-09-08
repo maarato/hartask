@@ -1,5 +1,6 @@
 import { configPath, syncSettings } from '@/lib/hartask/config';
 import { listSettings, type SettingView } from '@/lib/hartask/settings';
+import { ensureProject } from '@/lib/hartask/repositories/projects';
 import { listOrigins } from '@/lib/hartask/sync/identity';
 import { saveSettingsAction, syncNowAction } from './actions';
 
@@ -42,9 +43,11 @@ export default function SettingsPage() {
   const threshold = byKey.get('archiveReminderThreshold')!;
   const sync = byKey.get('syncUrl')!;
   const token = byKey.get('syncToken')!;
+  const projectId = byKey.get('syncProjectId')!;
   const readOnly = settings.filter((setting) => !setting.editable);
   const remote = syncSettings();
   const origins = listOrigins();
+  const project = ensureProject();
 
   return (
     <section className="stack sections">
@@ -109,6 +112,20 @@ export default function SettingsPage() {
             {token.override ? <OverrideWarning override={token.override} /> : null}
           </label>
 
+          <label className="stack field">
+            <span>{projectId.label}</span>
+            <input
+              name="syncProjectId"
+              defaultValue={String(projectId.value)}
+              placeholder={project.uuid}
+            />
+            <span className="muted small">
+              Déjalo vacío en la máquina original. En una segunda máquina, pega aquí el id del
+              proyecto para unirte al que ya existe en el almacén.
+            </span>
+            {projectId.override ? <OverrideWarning override={projectId.override} /> : null}
+          </label>
+
           <button type="submit">Guardar</button>
         </form>
       </article>
@@ -124,6 +141,13 @@ export default function SettingsPage() {
         </header>
 
         <dl className="handoff">
+          <dt>Id de este proyecto</dt>
+          <dd>
+            <code>{project.uuid}</code>
+            <div className="muted small">
+              Cópialo en la otra máquina para que sincronice contra este mismo proyecto.
+            </div>
+          </dd>
           {origins.map((origin) => (
             <div key={origin.id} style={{ display: 'contents' }}>
               <dt>{origin.is_local ? 'Este origen' : origin.label}</dt>

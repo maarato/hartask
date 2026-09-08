@@ -3,7 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { renameProject } from '@/lib/hartask/repositories/projects';
 import { saveSettings } from '@/lib/hartask/settings';
+import { syncSettings } from '@/lib/hartask/config';
 import { syncWithPeer } from '@/lib/hartask/sync/peer';
+import { isRemoteStoreUrl, syncWithRemoteStore } from '@/lib/hartask/sync/remote';
 
 function text(formData: FormData, field: string): string | null {
   const value = formData.get(field);
@@ -24,7 +26,10 @@ export async function saveSettingsAction(formData: FormData): Promise<void> {
     syncUrl: formData.has('syncUrl') ? (text(formData, 'syncUrl') ?? '') : undefined,
     // Empty means "leave the stored one": the field is never pre-filled,
     // because the page does not know the secret.
-    syncToken: text(formData, 'syncToken') ?? undefined
+    syncToken: text(formData, 'syncToken') ?? undefined,
+    syncProjectId: formData.has('syncProjectId')
+      ? (text(formData, 'syncProjectId') ?? '')
+      : undefined
   });
 
   // The project row carries its own name, so a rename has to reach it as well.
@@ -36,7 +41,9 @@ export async function saveSettingsAction(formData: FormData): Promise<void> {
 }
 
 export async function syncNowAction(): Promise<void> {
-  await syncWithPeer();
+  const { url } = syncSettings();
+  if (isRemoteStoreUrl(url)) await syncWithRemoteStore();
+  else await syncWithPeer();
 
   revalidatePath('/settings');
   revalidatePath('/summary');

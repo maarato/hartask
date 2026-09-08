@@ -80,10 +80,11 @@ copied into other repositories.
 
 ## Sync
 
-Bidirectional sync between two Hartask instances. The remote peer is another
-Hartask, not a raw database: the merge engine then runs unchanged on each side
-against its own SQLite, and a database in the cloud with nothing in front of it
-would give you nothing to look at anyway.
+Bidirectional sync. Two shapes, chosen by the configured URL: a passive
+libSQL/Turso database, or another Hartask instance over HTTP. The merge engine
+always runs locally against local SQLite, so the passive store needs no logic
+of its own — read its rows, merge here, write the result back. Full setup in
+`docs/SYNC.md`.
 
 - Identity is `uuid` + `origin` + a Lamport counter per row. Ordering does not
   use wall clocks, which would let a machine with a fast clock win every
@@ -102,6 +103,9 @@ would give you nothing to look at anyway.
   version beats B's and B receives it later, B applies it without flagging a
   conflict. Detecting that needs version vectors rather than one clock per row.
   Convergence is unaffected.
+- A second machine must be told the project uuid it is joining
+  (`HARTASK_SYNC_PROJECT_ID`); every database mints its own, so without it the
+  machine syncs an empty scope of its own.
 - Every exchange sends the full changeset. Resending is idempotent, so this is
   correct but not minimal; a per-peer cursor would trade that for state that
   has to stay right across failed exchanges.

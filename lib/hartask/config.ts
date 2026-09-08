@@ -16,6 +16,12 @@ export type HartaskConfig = {
    * URL. Never returned by the API and never rendered in the UI.
    */
   syncToken: string;
+  /**
+   * Which project in the remote store this instance is. Each database mints
+   * its own project uuid, so a second machine has to be told which project it
+   * is joining or it would sync against an empty scope of its own.
+   */
+  syncProjectId: string;
   harnessScan: { enabled: boolean; paths: string[] };
 };
 
@@ -27,6 +33,7 @@ export const DEFAULT_CONFIG: HartaskConfig = {
   archiveReminderThreshold: 15,
   syncUrl: '',
   syncToken: '',
+  syncProjectId: '',
   harnessScan: { enabled: true, paths: [] }
 };
 
@@ -41,7 +48,8 @@ export const ENV_KEYS = {
   projectName: 'HARTASK_PROJECT_NAME',
   archiveReminderThreshold: 'HARTASK_ARCHIVE_REMINDER_THRESHOLD',
   syncUrl: 'HARTASK_SYNC_URL',
-  syncToken: 'HARTASK_SYNC_TOKEN'
+  syncToken: 'HARTASK_SYNC_TOKEN',
+  syncProjectId: 'HARTASK_SYNC_PROJECT_ID'
 } as const;
 
 export type EnvBackedKey = keyof typeof ENV_KEYS;
@@ -103,7 +111,8 @@ export function loadConfig(): HartaskConfig {
       merged.archiveReminderThreshold
     ),
     syncUrl: process.env[ENV_KEYS.syncUrl] || merged.syncUrl,
-    syncToken: process.env[ENV_KEYS.syncToken] || merged.syncToken
+    syncToken: process.env[ENV_KEYS.syncToken] || merged.syncToken,
+    syncProjectId: process.env[ENV_KEYS.syncProjectId] || merged.syncProjectId
   };
   return cached;
 }
@@ -132,7 +141,11 @@ export function archiveReminderThreshold(): number {
   return loadConfig().archiveReminderThreshold;
 }
 
-export function syncSettings(): { url: string; token: string } {
+export function syncSettings(): { url: string; token: string; projectId: string } {
   const config = loadConfig();
-  return { url: config.syncUrl.trim(), token: config.syncToken.trim() };
+  return {
+    url: config.syncUrl.trim(),
+    token: config.syncToken.trim(),
+    projectId: config.syncProjectId.trim()
+  };
 }

@@ -890,7 +890,8 @@ hartask/
 ├── docs/
 │   ├── AGENT-SKILLS.md
 │   ├── FIRST-RUN.md
-│   └── NEXT-STEPS.md
+│   ├── NEXT-STEPS.md
+│   └── SYNC.md
 ├── lib/
 │   ├── db/
 │   │   ├── client.ts
@@ -992,19 +993,21 @@ Working end to end:
 - `GET/POST /api/tasks` and `GET/PATCH /api/tasks/[id]` (accepts `TASK-001` or a
   numeric id) with request validation;
 - `GET/POST /api/handoff` accepting the checkpoint payload documented above;
-- bidirectional sync with another Hartask instance: every synced row carries a
-  uuid, its origin and a Lamport counter, conflicts resolve last-write-wins per
-  row and the discarded version is written to the task's history rather than
-  dropped. `POST /api/sync` is one full exchange, closed unless a shared secret
-  is configured;
+- bidirectional sync, either against a passive libSQL/Turso database or against
+  another Hartask instance: every synced row carries a uuid, its origin and a
+  Lamport counter, conflicts resolve last-write-wins per row and the discarded
+  version is written to the task's history rather than dropped. The merge always
+  runs locally. Remote rows are scoped by `project_uuid`, so one store can hold
+  several projects. See `docs/SYNC.md`;
 - `GET /api/context` returning real project, current task, counts, events and
   the current handoff — the cold-start briefing an agent reads;
 - database initialization and seed scripts;
 - first-run onboarding: `GET /api/context` returns set-up instructions while
   the project has no tasks and no handoff, so an agent adopting Hartask
   discovers `docs/FIRST-RUN.md` through the call it was already making;
-- 53 tests on vitest, each file against its own temporary database and config
-  file.
+- 83 tests on vitest, each file against its own temporary database and config
+  file; the libSQL adapter is exercised through a `file:` URL, which is the
+  same code path Turso takes.
 
 Schema only, no runtime code yet:
 

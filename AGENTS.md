@@ -44,8 +44,9 @@ another database — which is how the tests get an isolated one —
 board tolerates before it suggests archiving, and `HARTASK_CONFIG` points at a
 different config file — which is how the tests avoid writing the project's own.
 
-`HARTASK_SYNC_URL` and `HARTASK_SYNC_TOKEN` configure sync with another
-Hartask instance. Sync is closed unless the secret is set, and the token is
+`HARTASK_SYNC_URL`, `HARTASK_SYNC_TOKEN` and `HARTASK_SYNC_PROJECT_ID`
+configure sync — against a libSQL/Turso store when the URL is `libsql:`/`file:`,
+or against another Hartask instance when it is `https:`. See `docs/SYNC.md`. Sync is closed unless the secret is set, and the token is
 never returned by the API or rendered in the UI — when adding a setting, decide
 whether it is a secret before it reaches a page.
 

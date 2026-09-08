@@ -24,7 +24,8 @@ export const EDITABLE_KEYS = [
   'projectName',
   'archiveReminderThreshold',
   'syncUrl',
-  'syncToken'
+  'syncToken',
+  'syncProjectId'
 ] as const;
 export type EditableKey = (typeof EDITABLE_KEYS)[number];
 
@@ -45,6 +46,7 @@ const LABELS: Record<keyof HartaskConfig, string> = {
   archiveReminderThreshold: 'Umbral de recordatorio de archivado',
   syncUrl: 'Hartask remoto con el que sincronizar',
   syncToken: 'Secreto compartido de sincronización',
+  syncProjectId: 'Proyecto en el almacén remoto',
   port: 'Puerto',
   database: 'Base de datos',
   projectRoot: 'Raíz del proyecto',
@@ -97,6 +99,7 @@ export function saveSettings(patch: SettingsPatch): HartaskConfig {
 
   if (patch.projectName !== undefined) next.projectName = patch.projectName;
   if (patch.syncUrl !== undefined) next.syncUrl = patch.syncUrl;
+  if (patch.syncProjectId !== undefined) next.syncProjectId = patch.syncProjectId;
   // An empty submission leaves the stored secret alone, so saving the rest of
   // the form does not wipe a token the page never showed.
   if (patch.syncToken) next.syncToken = patch.syncToken;

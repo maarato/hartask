@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { syncSettings } from '@/lib/hartask/config';
+import { ensureProject } from '@/lib/hartask/repositories/projects';
 import { listEvents } from '@/lib/hartask/repositories/tasks';
 import { listOrigins } from '@/lib/hartask/sync/identity';
 import { receiveExchange, syncWithPeer, verifySyncToken } from '@/lib/hartask/sync/peer';
+import { isRemoteStoreUrl, syncWithRemoteStore } from '@/lib/hartask/sync/remote';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,9 +14,13 @@ export async function GET() {
   const last = listEvents({ limit: 200 }).find((event) => event.event_type === 'SYNC_COMPLETED');
 
   return NextResponse.json({
-    configured: Boolean(url && token),
+    configured: Boolean(url) && (isRemoteStoreUrl(url) || Boolean(token)),
+    mode: url ? (isRemoteStoreUrl(url) ? 'remote-store' : 'hartask-peer') : null,
     url: url || null,
     token_configured: Boolean(token),
+    // The id a second machine needs so it joins this project rather than
+    // creating an empty one of its own in the store.
+    project_uuid: ensureProject().uuid,
     origins: listOrigins().map((origin) => ({
       id: origin.id,
       label: origin.label,
@@ -47,7 +53,12 @@ export async function POST(request: Request) {
 
   if (!authorization && (body as { action?: string })?.action === 'sync') {
     try {
-      return NextResponse.json(await syncWithPeer());
+      // A libsql:, file: or ws: URL is a passive store; http(s) is another
+      // Hartask instance to exchange changesets with.
+      const { url } = syncSettings();
+      return NextResponse.json(
+        isRemoteStoreUrl(url) ? await syncWithRemoteStore() : await syncWithPeer()
+      );
     } catch (error) {
       return NextResponse.json({ error: (error as Error).message }, { status: 502 });
     }

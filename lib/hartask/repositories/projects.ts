@@ -48,3 +48,22 @@ export function renameProject(name: string): Project {
   );
   return db.prepare(`SELECT * FROM projects WHERE id = ?`).get(project.id) as Project;
 }
+
+/**
+ * Points this database's project row at a uuid decided elsewhere, so a second
+ * machine can join a project that already exists in a shared store.
+ *
+ * Only the identity moves; the rows stay. Tasks reference the project through
+ * the store's scope, not through a local column, so nothing else has to change.
+ */
+export function adoptProjectUuid(uuid: string): Project {
+  const project = ensureProject();
+  if (project.uuid === uuid) return project;
+
+  const db = getDb();
+  db.prepare(`UPDATE projects SET uuid = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(
+    uuid,
+    project.id
+  );
+  return db.prepare(`SELECT * FROM projects WHERE id = ?`).get(project.id) as Project;
+}

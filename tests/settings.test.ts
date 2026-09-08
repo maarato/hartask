@@ -130,7 +130,8 @@ describe('listSettings', () => {
       'projectName',
       'archiveReminderThreshold',
       'syncUrl',
-      'syncToken'
+      'syncToken',
+      'syncProjectId'
     ]);
     expect(readOnly).toEqual(['port', 'database', 'projectRoot']);
   });

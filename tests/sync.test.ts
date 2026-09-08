@@ -11,6 +11,7 @@ import {
   setTaskStatus,
   updateTask
 } from '@/lib/hartask/repositories/tasks';
+import { getDb } from '@/lib/db/client';
 import { applyChangeset, exportChangeset } from '@/lib/hartask/sync/changeset';
 import { localOrigin } from '@/lib/hartask/sync/identity';
 import { createPeer, on, type Peer } from './peers';
@@ -43,6 +44,19 @@ describe('propagation', () => {
     expect(arrived?.uuid).toBe(created.uuid);
     expect(arrived?.title).toBe('Add authentication');
     expect(arrived?.status).toBe('READY');
+  });
+
+  it('exports rows the migration left at clock zero', () => {
+    const task = on(laptop, () => createTask({ title: 'a task' }));
+    // What the identity backfill produced for every task a project already had
+    // before sync existed. An exclusive lower bound would skip all of them.
+    on(laptop, () => getDb().prepare(`UPDATE tasks SET lamport = 0`).run());
+
+    const changeset = on(laptop, () => exportChangeset(0));
+    expect(changeset.tasks.map((t) => t.uuid)).toEqual([task.uuid]);
+
+    on(cloud, () => applyChangeset(changeset));
+    expect(on(cloud, () => listTasks()).map((t) => t.title)).toEqual(['a task']);
   });
 
   it('is idempotent: applying the same changeset twice changes nothing', () => {
