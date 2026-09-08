@@ -9,6 +9,7 @@ import {
   addNote,
   createTask,
   getTask,
+  listEvents,
   listTasks,
   listTaskTree,
   setTaskStatus
@@ -29,13 +30,13 @@ let desktop: Peer;
  * One machine syncing against the shared store. `projectId` is how a second
  * machine says which project in the store it is joining.
  */
-async function sync(peer: Peer, projectId?: string) {
+async function sync(peer: Peer, projectId?: string, options?: { adoptProject?: boolean }) {
   process.env.HARTASK_SYNC_URL = `file:${store}`;
   delete process.env.HARTASK_SYNC_TOKEN;
   if (projectId) process.env.HARTASK_SYNC_PROJECT_ID = projectId;
   else delete process.env.HARTASK_SYNC_PROJECT_ID;
   resetConfigCache();
-  return on(peer, () => syncWithRemoteStore());
+  return on(peer, () => syncWithRemoteStore(options));
 }
 
 async function readStore(table: string) {
@@ -115,14 +116,20 @@ describe('syncWithRemoteStore', () => {
   });
 
   it('rebuilds the hierarchy through the store, where row ids mean nothing', async () => {
+    on(laptop, () => createTask({ title: 'something first' }));
+    const { project_uuid } = await sync(laptop);
+
+    // The desktop joins while empty, then does work of its own, which offsets
+    // its row ids from the laptop's. The hierarchy that arrives afterwards can
+    // only be rebuilt from uuids.
+    await sync(desktop, project_uuid);
+    on(desktop, () => createTask({ title: 'local work, shifting the ids' }));
+
     on(laptop, () => {
       const parent = createTask({ title: 'parent' });
       createTask({ title: 'child', parentId: parent.id });
     });
-    const { project_uuid } = await sync(laptop);
-
-    // Different row ids on the other side, so the link has to travel as a uuid.
-    on(desktop, () => createTask({ title: 'unrelated local work' }));
+    await sync(laptop);
     await sync(desktop, project_uuid);
 
     const tree = on(desktop, () => listTaskTree());
@@ -195,6 +202,60 @@ describe('syncWithRemoteStore', () => {
     const local = on(laptop, () => listPrompts())[0];
     expect(local.status).toBe('CLAIMED');
     expect(local.claimed_by).toBe('agent-on-the-desktop');
+  });
+
+  it('refuses to fold a board that has its own work into another project', async () => {
+    on(laptop, () => createTask({ title: 'the laptop project' }));
+    const { project_uuid } = await sync(laptop);
+
+    // A .env.local copied from the laptop, onto a project that already has work.
+    on(desktop, () => createTask({ title: 'a different project entirely' }));
+
+    await expect(sync(desktop, project_uuid)).rejects.toThrow(/merge two boards/i);
+
+    // Nothing moved: the store still holds only the laptop's board.
+    expect((await readStore('tasks')).map((t) => t.title)).toEqual(['the laptop project']);
+    expect(on(desktop, () => listTasks()).map((t) => t.title)).toEqual([
+      'a different project entirely'
+    ]);
+  });
+
+  it('records the refusal instead of failing quietly', async () => {
+    on(laptop, () => createTask({ title: 'the laptop project' }));
+    const { project_uuid } = await sync(laptop);
+    on(desktop, () => createTask({ title: 'a different project entirely' }));
+
+    await sync(desktop, project_uuid).catch(() => undefined);
+
+    const refusal = on(desktop, () =>
+      listEvents({ limit: 20 }).find((event) => event.event_type === 'SYNC_REFUSED')
+    );
+    expect(refusal).toBeDefined();
+  });
+
+  it('still lets a genuinely empty machine join', async () => {
+    on(laptop, () => createTask({ title: 'existing work' }));
+    const { project_uuid } = await sync(laptop);
+
+    // The legitimate case: a fresh install, so there is no board to merge.
+    await sync(desktop, project_uuid);
+
+    expect(on(desktop, () => listTasks()).map((t) => t.title)).toEqual(['existing work']);
+  });
+
+  it('goes ahead when the move is asked for explicitly', async () => {
+    on(laptop, () => createTask({ title: 'the laptop project' }));
+    const { project_uuid } = await sync(laptop);
+    on(desktop, () => createTask({ title: 'moved on purpose' }));
+
+    // The escape hatch is a parameter of the call, so it cannot ride along
+    // inside a copied .env.local the way a setting would.
+    await sync(desktop, project_uuid, { adoptProject: true });
+
+    expect((await readStore('tasks')).map((t) => t.title).sort()).toEqual([
+      'moved on purpose',
+      'the laptop project'
+    ]);
   });
 
   it('records the sync as an event on the project timeline', async () => {

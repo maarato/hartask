@@ -65,10 +65,16 @@ needs the URL and the token, and **not** `HARTASK_SYNC_PROJECT_ID`:
 | `HARTASK_SYNC_PROJECT_ID` | the project's uuid | leave empty |
 | Result | the board reaches the other machine | a separate project in the store |
 
-Setting the project id on a genuinely new project makes it write into the
-existing project's scope, and the two boards end up merged into one. Copying an
-`.env.local` from another project is how that happens, so check that line before
-the first sync.
+Setting the project id on a genuinely new project would write this board into
+the existing project's scope, merging the two. Sync refuses that: if the project
+id names another project and this database already has tasks of its own, it
+stops with a 409 and records a `SYNC_REFUSED` event instead of going ahead.
+
+A second machine joining legitimately is unaffected, because it starts empty.
+If you really do want to move an existing board into another project, sync once
+with `{"action":"sync","adopt_project":true}` — the escape hatch is a parameter
+of the call rather than a setting, so it cannot travel inside the copied
+`.env.local` that caused the problem.
 
 Install Hartask by cloning it, not by copying the folder from another project.
 A copy carries `data/hartask.sqlite`, and with it that project's `sync_origins`

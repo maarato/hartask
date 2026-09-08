@@ -147,7 +147,9 @@ of its own — read its rows, merge here, write the result back. Full setup in
   Convergence is unaffected.
 - A second machine must be told the project uuid it is joining
   (`HARTASK_SYNC_PROJECT_ID`); every database mints its own, so without it the
-  machine syncs an empty scope of its own.
+  machine syncs an empty scope of its own. Pointing it at another project from a
+  database that already has tasks is refused, since that is how two boards get
+  merged into one and no later sync can separate them.
 - Claiming is atomic within an instance and only advisory across synced
   machines; a double claim is recorded as `SYNC_DOUBLE_CLAIM`.
 - The atomic claim is tested single-process. Two processes racing for the same

@@ -2,7 +2,7 @@ import { createClient, type Client, type InValue } from '@libsql/client';
 import { randomUUID } from 'node:crypto';
 import { syncSettings } from '@/lib/hartask/config';
 import { adoptProjectUuid, ensureProject } from '@/lib/hartask/repositories/projects';
-import { recordEvent } from '@/lib/hartask/repositories/tasks';
+import { listTasks, recordEvent } from '@/lib/hartask/repositories/tasks';
 import {
   applyChangeset,
   exportChangeset,
@@ -311,6 +311,63 @@ async function writeRemote(
   return statements.length;
 }
 
+/**
+ * A refusal the caller can tell apart from a transport failure: nothing is
+ * wrong with the network, the configuration is wrong.
+ */
+export class SyncRefusedError extends Error {
+  readonly refused = true;
+}
+
+/**
+ * Refuses to fold this project's board into another project's scope.
+ *
+ * HARTASK_SYNC_PROJECT_ID is for a second machine joining a project that
+ * already exists in the store, and such a machine starts empty. A database
+ * that already has tasks of its own, pointed at someone else's project id, is
+ * almost always a .env.local copied from another project — and going ahead
+ * would merge two boards into one, which no later sync can undo.
+ *
+ * The way out is a parameter of this call, never a setting: a setting is the
+ * thing that gets copied, and would carry the override along with the mistake.
+ */
+function guardProjectAdoption(configuredId: string, adopt: boolean): void {
+  const project = ensureProject();
+  if (project.uuid === configuredId) return;
+
+  const local = listTasks({ includeArchived: true }).length;
+  if (local === 0) return;
+
+  if (adopt) {
+    recordEvent({
+      eventType: 'SYNC_PROJECT_ADOPTED',
+      summary: `Este board pasó al proyecto ${configuredId} a pedido explícito`,
+      payload: { from: project.uuid, to: configuredId, local_tasks: local },
+      agentId: 'sync'
+    });
+    return;
+  }
+
+  recordEvent({
+    eventType: 'SYNC_REFUSED',
+    summary: 'Sincronización detenida: el id de proyecto configurado es de otro board',
+    payload: { local_project: project.uuid, configured: configuredId, local_tasks: local },
+    agentId: 'sync'
+  });
+
+  throw new SyncRefusedError(
+    `Sync stopped: HARTASK_SYNC_PROJECT_ID is ${configuredId}, but this database already has ` +
+      `${local} task(s) of its own under project ${project.uuid}. Going ahead would merge two ` +
+      `boards into one project, and no later sync can separate them again.
+
+` +
+      `If this is a new project: unset HARTASK_SYNC_PROJECT_ID. It is only for a second machine ` +
+      `joining a project that already exists in the store, and such a machine starts empty.
+` +
+      `If you did mean to move this board into that project: sync once with {"adopt_project": true}.`
+  );
+}
+
 export type RemoteSyncOutcome = {
   url: string;
   project_uuid: string;
@@ -318,12 +375,15 @@ export type RemoteSyncOutcome = {
   pushed: number;
 };
 
-export async function syncWithRemoteStore(): Promise<RemoteSyncOutcome> {
+export async function syncWithRemoteStore(
+  options: { adoptProject?: boolean } = {}
+): Promise<RemoteSyncOutcome> {
   const { url, projectId } = syncSettings();
 
   // A second machine joins an existing project by being told its id: every
   // database mints its own, so without this it would sync against an empty
   // scope of its own and see none of the board.
+  if (projectId) guardProjectAdoption(projectId, options.adoptProject ?? false);
   const project = projectId ? adoptProjectUuid(projectId) : ensureProject();
   const client = openRemote();
 
