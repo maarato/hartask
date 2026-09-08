@@ -120,3 +120,51 @@ export const STATUS_ORDER: readonly TaskStatus[] = [
   'CANCELLED',
   'DONE'
 ];
+
+export const PROMPT_STATUSES = [
+  'DRAFT',
+  'READY',
+  'CLAIMED',
+  'RUNNING',
+  'DONE',
+  'FAILED',
+  'CANCELLED'
+] as const;
+
+export type PromptStatus = (typeof PROMPT_STATUSES)[number];
+
+/** Statuses a queued prompt can still be picked up from. */
+export const CLAIMABLE_STATUS: PromptStatus = 'READY';
+
+export type Prompt = SyncFields & {
+  id: number;
+  synced_lamport: number;
+  task_id: number | null;
+  title: string | null;
+  prompt: string;
+  status: PromptStatus;
+  priority: number;
+  position: number;
+  claimed_by: string | null;
+  claimed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PromptRunStatus = 'RUNNING' | 'DONE' | 'FAILED';
+
+export type PromptRun = SyncFields & {
+  id: number;
+  synced_lamport: number;
+  prompt_id: number;
+  agent_id: string | null;
+  status: string;
+  summary: string | null;
+  error: string | null;
+  started_at: string;
+  finished_at: string | null;
+};
+
+export function isPromptStatus(value: unknown): value is PromptStatus {
+  return typeof value === 'string' && (PROMPT_STATUSES as readonly string[]).includes(value);
+}

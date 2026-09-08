@@ -1,5 +1,6 @@
 import { getDb } from '@/lib/db/client';
-import { localOrigin, localStamp, nextLamport } from '@/lib/hartask/sync/identity';
+import { claimNextPrompt, createPrompt, failPrompt } from '@/lib/hartask/repositories/prompts';
+import type { PromptStatus } from '@/lib/hartask/types';
 
 /**
  * Empties every table between tests so each one starts from a known board.
@@ -21,54 +22,30 @@ export function resetDb(): void {
 }
 
 /**
- * Prompt Stack has no repository yet (TASK-017), so these stand in for it:
- * enough to exercise the sync path, stamping identity the way a repository
- * would. Replace them with the real repository once it exists.
+ * Thin wrappers over the prompt repository, so a sync test can set up a queue
+ * without repeating its API. Claiming goes through the real claimNextPrompt:
+ * these tests only ever have one queued prompt, so it takes that one.
  */
 export function insertPrompt(input: {
   prompt: string;
   taskId?: number | null;
   status?: string;
-  claimedBy?: string | null;
 }): { id: number; uuid: string } {
-  const db = getDb();
-  const stamp = localStamp();
-  const info = db
-    .prepare(
-      `INSERT INTO prompts (uuid, origin, lamport, task_id, prompt, status, claimed_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      stamp.uuid,
-      stamp.origin,
-      stamp.lamport,
-      input.taskId ?? null,
-      input.prompt,
-      input.status ?? 'READY',
-      input.claimedBy ?? null
-    );
-  return { id: Number(info.lastInsertRowid), uuid: stamp.uuid };
+  const created = createPrompt({
+    prompt: input.prompt,
+    taskId: input.taskId ?? null,
+    status: (input.status as PromptStatus | undefined) ?? 'READY'
+  });
+  return { id: created.id, uuid: created.uuid };
 }
 
-/** Claiming a prompt: a local edit, so it moves the row's clock forward. */
-export function claimPrompt(uuid: string, agent: string): void {
-  getDb()
-    .prepare(
-      `UPDATE prompts SET status = 'CLAIMED', claimed_by = ?, claimed_at = CURRENT_TIMESTAMP,
-                          updated_at = CURRENT_TIMESTAMP, lamport = ?, origin = ?
-       WHERE uuid = ?`
-    )
-    .run(agent, nextLamport(), localOrigin().id, uuid);
+/** Claims whatever is queued, which in these tests is the given prompt. */
+export function claimPrompt(_uuid: string, agent: string): void {
+  claimNextPrompt(agent);
 }
 
-export function insertPromptRun(promptId: number, status: string): { uuid: string } {
-  const db = getDb();
-  const stamp = localStamp();
-  db.prepare(
-    `INSERT INTO prompt_runs (uuid, origin, lamport, prompt_id, agent_id, status)
-     VALUES (?, ?, ?, ?, ?, ?)`
-  ).run(stamp.uuid, stamp.origin, stamp.lamport, promptId, 'test-agent', status);
-  return { uuid: stamp.uuid };
+export function failLastRun(promptId: number, error: string): void {
+  failPrompt(promptId, error);
 }
 
 export function listPrompts(): Record<string, unknown>[] {

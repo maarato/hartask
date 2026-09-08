@@ -40,6 +40,24 @@ finished. Status changes are recorded as events automatically; you do not need
 to log them separately. Canonical states: `BACKLOG`, `READY`, `IN_PROGRESS`,
 `BLOCKED`, `REVIEW`, `DONE`, `CANCELLED`.
 
+### Taking queued work
+
+```
+POST /api/prompts/claim   { "agent_id": "your-id" }
+```
+
+Claim, never get: two agents calling this never receive the same prompt. When
+you finish, close the attempt:
+
+```
+PATCH /api/prompts/{id}   { "action": "complete", "summary": "what you did" }
+PATCH /api/prompts/{id}   { "action": "fail", "error": "what broke" }
+```
+
+Failing returns the prompt to the queue by default — the same instruction often
+needs several tries, and every attempt is kept. Pass `"retry": false` to give up
+on it instead.
+
 ### Before ending meaningful work
 
 ```
@@ -61,7 +79,5 @@ blocker or a completed task — not after every file write.
 
 ### Not available yet
 
-`/api/prompts` and `/api/harness` are stubs, and `/api/mcp` is a placeholder,
-not an MCP transport. There is no prompt queue to claim from yet, so ignore
-any instruction to "take the next Hartask prompt" until those endpoints
-return real data.
+`/api/harness` is a stub and `/api/mcp` is a placeholder, not an MCP transport.
+Everything else described here works.

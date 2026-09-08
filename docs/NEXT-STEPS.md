@@ -48,8 +48,16 @@ copied into other repositories.
 
 ## Next
 
-7. Implement Prompt Stack and the atomic `claim_next_prompt` transaction.
-8. Implement prompt runs.
+7. ~~Implement Prompt Stack and the atomic `claim_next_prompt` transaction.~~
+   `lib/hartask/repositories/prompts.ts`. The claim runs in an IMMEDIATE
+   transaction: a deferred one takes its write lock only at the UPDATE, leaving
+   a window where another connection could read the same row as READY. Claiming
+   marks a prompt CLAIMED, following the lifecycle in the README; the open run
+   row is what says execution is in flight.
+8. ~~Implement prompt runs.~~
+   A failed attempt returns the prompt to the queue by default and keeps the
+   attempt, because the queue exists for instructions that need several tries.
+   `retry: false` gives up instead.
 9. Replace `/api/mcp` placeholder with a real MCP Streamable HTTP endpoint on the
    same port.
 10. Expose semantic Hartask MCP tools over the repositories that now exist.
@@ -118,10 +126,10 @@ of its own — read its rows, merge here, write the result back. Full setup in
 - A second machine must be told the project uuid it is joining
   (`HARTASK_SYNC_PROJECT_ID`); every database mints its own, so without it the
   machine syncs an empty scope of its own.
-- `prompts` and `prompt_runs` sync, but nothing writes them yet: the Prompt
-  Stack repository is still TASK-017, so that path is exercised by tests rather
-  than by use. Claiming is atomic within an instance and only advisory across
+- Claiming is atomic within an instance and only advisory across synced
   machines; a double claim is recorded as `SYNC_DOUBLE_CLAIM`.
+- The atomic claim is tested single-process. Two processes racing for the same
+  prompt is not covered by an automated test — the same gap as the API routes.
 - `harness_components` and `harness_scans` stay local on purpose: they describe
   files on one machine's disk.
 - Every exchange sends the full changeset. Resending is idempotent, so this is

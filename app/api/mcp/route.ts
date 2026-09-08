@@ -12,6 +12,6 @@ export async function GET() {
     available_interface: HARTASK_AVAILABLE_INTERFACE,
     planned_tools: hartaskTools,
     tools: [],
-    note: 'Not an MCP endpoint yet. Use the HTTP API described in available_interface. Replace this placeholder with an MCP Streamable HTTP implementation on the same /mcp route.'
+    note: 'Not an MCP endpoint yet. Use the HTTP API described in available_interface. Replace this placeholder with an MCP Streamable HTTP implementation on the same /mcp route. hartask_claim_next_prompt, hartask_complete_prompt and hartask_fail_prompt now have real implementations behind /api/prompts.'
   });
 }

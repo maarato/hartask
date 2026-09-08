@@ -878,6 +878,7 @@ hartask/
 │   │   └── tasks/
 │   ├── harness/
 │   ├── summary/
+│   ├── prompts/
 │   ├── settings/
 │   ├── tasks/
 │   │   └── [id]/
@@ -993,6 +994,10 @@ Working end to end:
   across the project;
 - `GET/POST /api/tasks` and `GET/PATCH /api/tasks/[id]` (accepts `TASK-001` or a
   numeric id) with request validation;
+- Prompt Stack: a queue of agent-executable instructions with an atomic claim,
+  runs kept as rows so an instruction that needed three attempts still shows
+  all three, and a `/prompts` view. `POST /api/prompts/claim` is the operation
+  the whole queue exists for: two agents never receive the same prompt;
 - `GET/POST /api/handoff` accepting the checkpoint payload documented above;
 - bidirectional sync, either against a passive libSQL/Turso database or against
   another Hartask instance: every synced row carries a uuid, its origin and a
@@ -1012,8 +1017,6 @@ Working end to end:
 
 Schema only, no runtime code yet:
 
-- Prompt Stack schema;
-- Prompt Runs schema;
 - Harness scan metadata schema.
 
 Documentation and design:
@@ -1031,9 +1034,6 @@ Documentation and design:
 The starter intentionally leaves these as the next development phase:
 
 - cascade/grid switch;
-- Prompt Stack UI;
-- atomic prompt claim implementation;
-- prompt run execution lifecycle;
 - real MCP protocol transport;
 - MCP resources/prompts;
 - harness scanner;

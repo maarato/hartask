@@ -15,7 +15,7 @@ import {
 } from '@/lib/hartask/repositories/tasks';
 import { isRemoteStoreUrl, syncWithRemoteStore } from '@/lib/hartask/sync/remote';
 import { createPeer, on, type Peer } from './peers';
-import { claimPrompt, insertPrompt, insertPromptRun, listPrompts } from './helpers';
+import { claimPrompt, failLastRun, insertPrompt, listPrompts } from './helpers';
 
 /**
  * The libSQL client treats a file: URL exactly like a remote one, so the whole
@@ -166,7 +166,8 @@ describe('syncWithRemoteStore', () => {
       on(laptop, () => {
         const task = createTask({ title: 'Add authentication' });
         const prompt = insertPrompt({ prompt: 'Analyze the current auth', taskId: task.id });
-        insertPromptRun(prompt.id, 'FAILED');
+        claimPrompt(prompt.uuid, 'agent-on-the-laptop');
+        failLastRun(prompt.id, 'the mock lacks expires_at');
       });
       return sync(laptop);
     })();

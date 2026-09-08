@@ -12,13 +12,14 @@ import {
   updateTask
 } from '@/lib/hartask/repositories/tasks';
 import { getDb } from '@/lib/db/client';
+import { updatePrompt } from '@/lib/hartask/repositories/prompts';
 import { applyChangeset, exportChangeset } from '@/lib/hartask/sync/changeset';
 import { localOrigin } from '@/lib/hartask/sync/identity';
 import { createPeer, on, type Peer } from './peers';
 import {
   claimPrompt,
   insertPrompt,
-  insertPromptRun,
+  failLastRun,
   listPromptRuns,
   listPrompts
 } from './helpers';
@@ -137,7 +138,11 @@ describe('prompt stack', () => {
 
   it('carries a run and keeps its link to the prompt', () => {
     const prompt = on(laptop, () => insertPrompt({ prompt: 'Fix the tests' }));
-    on(laptop, () => insertPromptRun(prompt.id, 'FAILED'));
+    // A run only exists because something claimed the prompt and it failed.
+    on(laptop, () => {
+      claimPrompt(prompt.uuid, 'agent-on-the-laptop');
+      failLastRun(prompt.id, 'the mock lacks expires_at');
+    });
 
     sync(laptop, cloud);
 
@@ -168,8 +173,10 @@ describe('prompt stack', () => {
     on(laptop, () => claimPrompt(prompt.uuid, 'agent-on-the-laptop'));
     on(cloud, () => {
       claimPrompt(prompt.uuid, 'agent-in-the-cloud');
-      claimPrompt(prompt.uuid, 'agent-in-the-cloud');
-      claimPrompt(prompt.uuid, 'agent-in-the-cloud');
+      // Two more edits put the cloud's clock strictly ahead, so the winner is
+      // decided by the clock rather than by the origin tiebreak.
+      updatePrompt(prompt.id, { title: 'working on it' });
+      updatePrompt(prompt.id, { title: 'still working on it' });
     });
 
     const result = sync(cloud, laptop);

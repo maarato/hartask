@@ -36,6 +36,14 @@ code { background:#171c22; padding:2px 5px; border-radius:6px; }
 .badge[data-status="REVIEW"] { border-color:#8a5cd6; color:#c5a8f5; }
 .badge[data-status="DONE"] { border-color:#2f9e6b; color:#82dcb2; }
 .badge[data-status="CANCELLED"] { border-color:#4a5260; color:#8b93a1; }
+/* Prompt lifecycle reuses the task palette where the meaning matches, and adds
+   the two states only a queue has. */
+.badge[data-status="DRAFT"] { border-color:#4a5260; color:#8b93a1; }
+.badge[data-status="CLAIMED"] { border-color:#c98a2b; color:#f0c274; }
+.badge[data-status="FAILED"] { border-color:#c0453d; color:#f2938c; }
+.task[data-status="CLAIMED"] { border-left:3px solid #c98a2b; }
+.task[data-status="FAILED"] { border-left:3px solid #c0453d; }
+.task[data-status="DRAFT"] { opacity:.8; }
 
 .task { margin-bottom:0; padding:12px 16px; }
 .task[data-status="IN_PROGRESS"] { border-left:3px solid #c98a2b; }

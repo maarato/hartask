@@ -30,6 +30,12 @@ Available today over HTTP on this same server:
   POST  /api/tasks                 { title, status, next_action, parent_id, agent_id }
   GET   /api/tasks/{id}            one task with its notes and events (TASK-001 or numeric id)
   PATCH /api/tasks/{id}            { status, next_action, blocked_reason, note, agent_id }
+  GET   /api/prompts               the queue, with counts per status
+  POST  /api/prompts               { prompt, title, task_id, status, priority, position }
+  POST  /api/prompts/claim         { agent_id } -> takes the next READY prompt, atomically
+  GET   /api/prompts/{id}          one prompt with every attempt it has had
+  PATCH /api/prompts/{id}          { action: "complete", summary }
+                                   { action: "fail", error, retry } — retry defaults to true
   GET   /api/handoff               current handoff (?history=true for previous checkpoints)
   POST  /api/handoff               { current_task, done, current_state, next, problems,
                                      important_files, important_decisions, agent_run_id }
@@ -37,9 +43,14 @@ Available today over HTTP on this same server:
 
 Status transitions record events automatically; do not log them separately.
 
-Not implemented yet: /api/prompts and /api/harness are stubs, and this /api/mcp
-route is a placeholder rather than an MCP transport. There is no prompt queue to
-claim from, so rule 2 above currently applies to tasks only.
+Claim, never get: two agents calling /api/prompts/claim never receive the same
+prompt. That holds for agents sharing this database; across synced machines it
+cannot, and a double claim is recorded rather than prevented. A failed attempt
+returns the prompt to the queue by default, because the same instruction often
+needs several tries.
+
+Not implemented yet: /api/harness is a stub, and this /api/mcp route is a
+placeholder rather than an MCP transport.
 `;
 
 /**
