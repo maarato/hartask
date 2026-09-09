@@ -61,7 +61,11 @@ export async function createTaskAction(formData: FormData): Promise<void> {
     nextAction: text(formData, 'next_action'),
     description: text(formData, 'description'),
     parentId: parentId ? Number(parentId) : null,
-    category: text(formData, 'category')
+    // Blank means nothing was said, so a subtask inherits its parent's area.
+    // Undefined and null are different answers here; `text` returns null for a
+    // blank field, which would be the wrong one. Creating a subtask with no
+    // category at all is done by clearing it on the card afterwards.
+    category: text(formData, 'category') ?? undefined
   });
 
   afterMutation();

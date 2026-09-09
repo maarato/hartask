@@ -1013,7 +1013,10 @@ Working end to end:
   filterable to one of them from the URL. Nullable on purpose — a task without a
   category is normal, not incomplete — and a name that already exists under a
   different case reuses that spelling, so a board does not grow "Sync", "sync"
-  and "SYNC" as three areas;
+  and "SYNC" as three areas. A subtask takes its parent's category when none is
+  given, because a subtask born blank drops out of its own area's filter and the
+  parent then shows with none of the work under it; saying nothing and saying
+  "none" stay different answers, so an explicit null still opts out;
 - task detail at `/tasks/[id]`: the task's own notes and its complete event
   timeline, which the board cannot show because it only lists the last events
   across the project;

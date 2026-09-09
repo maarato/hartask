@@ -170,6 +170,30 @@ export function normalizeCategory(value: string | null | undefined): string | nu
   return existing?.category ?? trimmed;
 }
 
+/**
+ * The category a new task starts with.
+ *
+ * A subtask under a categorised parent takes the parent's, because a subtask
+ * that is born blank drops out of its own area's filter and nobody notices:
+ * the parent shows up decapitated, without the children, which is where the
+ * work actually is.
+ *
+ * Saying nothing and saying "none" are different answers, so they are kept
+ * apart here — undefined inherits, an explicit null does not. It is the same
+ * rule ListTasksFilter.category already uses, and collapsing the two is what
+ * would remove the only way to put a subtask deliberately outside its parent's
+ * area.
+ *
+ * The parent's value is copied, not derived on read: the stored row is then
+ * what the board, the API and the store all agree on, and a later change to
+ * the parent leaves the child's own decision alone.
+ */
+function categoryForNewTask(data: CreateTaskInput): string | null {
+  if (data.category !== undefined) return normalizeCategory(data.category);
+  if (data.parentId === undefined || data.parentId === null) return null;
+  return getTask(data.parentId)?.category ?? null;
+}
+
 /** Categories in use, with how many live tasks carry each, for the board filter. */
 export function listCategories(): { name: string; count: number }[] {
   return getDb()
@@ -236,7 +260,7 @@ export function createTask(input: CreateTaskInput): Task {
         data.status ?? 'BACKLOG',
         data.priority ?? 0,
         data.nextAction ?? null,
-        normalizeCategory(data.category)
+        categoryForNewTask(data)
       );
 
     const task = db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(info.lastInsertRowid) as Task;

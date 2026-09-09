@@ -56,7 +56,14 @@ export async function POST(request: Request) {
     parentId: typeof body.parent_id === 'number' ? body.parent_id : null,
     priority: typeof body.priority === 'number' ? body.priority : undefined,
     nextAction: typeof body.next_action === 'string' ? body.next_action : null,
-    category: typeof body.category === 'string' ? body.category : null,
+    // Omitted leaves it to the repository, which inherits the parent's;
+    // explicit null is a caller saying this subtask has no area.
+    category:
+      body.category === null
+        ? null
+        : typeof body.category === 'string'
+          ? body.category
+          : undefined,
     agentId: typeof body.agent_id === 'string' ? body.agent_id : null
   });
 

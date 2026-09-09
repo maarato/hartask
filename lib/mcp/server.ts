@@ -152,8 +152,11 @@ export function createHartaskMcpServer(): McpServer {
         priority: z.number().optional(),
         category: z
           .string()
+          .nullable()
           .optional()
-          .describe('Optional area label, e.g. "sync". Reuses an existing spelling if one matches'),
+          .describe(
+            'Area label, e.g. "sync". Omit it on a subtask to take the one from its parent; pass null for no area. Reuses an existing spelling if one matches'
+          ),
         agent_id: z.string().optional()
       }
     },

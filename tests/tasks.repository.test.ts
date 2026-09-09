@@ -384,3 +384,61 @@ describe('categories', () => {
     expect(normalizeCategory(null)).toBeNull();
   });
 });
+
+
+describe('a subtask inherits its area', () => {
+  it('takes the category of the parent when none was given', () => {
+    const parent = createTask({ title: 'Sync bidireccional', category: 'sync' });
+
+    const child = createTask({ title: 'Motor de merge', parentId: parent.id });
+
+    expect(child.category).toBe('sync');
+  });
+
+  it('keeps its own category rather than the one above it', () => {
+    const parent = createTask({ title: 'Shared contexts', category: 'docs' });
+
+    const child = createTask({ title: 'Recursos MCP', parentId: parent.id, category: 'mcp' });
+
+    expect(child.category).toBe('mcp');
+  });
+
+  // Saying nothing and saying "none" are different answers. Collapsing them
+  // removes the only way to put a subtask deliberately outside its parent's
+  // area, which is the mistake this rule exists to prevent.
+  it('does not inherit when the caller explicitly said no category', () => {
+    const parent = createTask({ title: 'Sync bidireccional', category: 'sync' });
+
+    const child = createTask({ title: 'Nota suelta', parentId: parent.id, category: null });
+
+    expect(child.category).toBeNull();
+  });
+
+  it('gives a root task nothing, because there is nowhere to inherit from', () => {
+    expect(createTask({ title: 'Suelta' }).category).toBeNull();
+  });
+
+  it('inherits nothing from a parent that has no category either', () => {
+    const parent = createTask({ title: 'Contenedor' });
+
+    expect(createTask({ title: 'Hija', parentId: parent.id }).category).toBeNull();
+  });
+
+  // Inheritance happens once, at creation. Re-categorising a parent must not
+  // reach into children that were labelled deliberately.
+  it('does not follow the parent when the parent is recategorised later', () => {
+    const parent = createTask({ title: 'Sync bidireccional', category: 'sync' });
+    const child = createTask({ title: 'Motor de merge', parentId: parent.id });
+
+    updateTask(parent.id, { category: 'harness' });
+
+    expect(getTask(child.id)!.category).toBe('sync');
+  });
+
+  it('reuses an existing spelling when inheriting, like any other write', () => {
+    createTask({ title: 'Otra', category: 'Sync' });
+    const parent = createTask({ title: 'Padre', category: 'sync' });
+
+    expect(createTask({ title: 'Hija', parentId: parent.id }).category).toBe('Sync');
+  });
+});
