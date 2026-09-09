@@ -566,7 +566,10 @@ It runs in ./hartask/ and answers on http://localhost:43127.
 See `AGENTS.bootstrap.example.md` for the full version, and
 `docs/FIRST-RUN.md` for what an agent should do the first time it finds a
 project that has just adopted Hartask — including migrating an existing
-`tasks.md`, and asking the user before doing so.
+`tasks.md`, and asking the user before doing so. `docs/INSTALL-PROMPT.md` is
+what to hand that agent to get there: it covers cloning Hartask into the
+project and picking a port, which are the two steps that happen before
+`FIRST-RUN.md` has anything to describe.
 
 The bootstrap must describe the interface that actually exists. Once the MCP
 transport lands, the same pointer becomes a list of `hartask_*` tools; until
@@ -895,6 +898,7 @@ hartask/
 ├── docs/
 │   ├── AGENT-SKILLS.md
 │   ├── FIRST-RUN.md
+│   ├── INSTALL-PROMPT.md
 │   ├── NEXT-STEPS.md
 │   └── SYNC.md
 ├── lib/
