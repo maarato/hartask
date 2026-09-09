@@ -6,6 +6,7 @@ import { listTasks, recordEvent } from '@/lib/hartask/repositories/tasks';
 import {
   applyChangeset,
   exportChangeset,
+  syncedColumns,
   type AppendRow,
   type Changeset,
   type MergeResult,
@@ -237,53 +238,10 @@ async function writeRemote(
   // Mutable tables upsert: after the local merge this database already holds
   // the winning version, so the remote copy is simply overwritten.
   const MUTABLE_REMOTE = [
-    {
-      table: 'tasks',
-      rows: local.tasks as unknown as Record<string, unknown>[],
-      columns: [
-        'public_id',
-        'parent_uuid',
-        'title',
-        'description',
-        'status',
-        'priority',
-        'next_action',
-        'blocked_reason',
-        'archived_at',
-        'created_at',
-        'updated_at'
-      ]
-    },
-    {
-      table: 'prompts',
-      rows: local.prompts as unknown as Record<string, unknown>[],
-      columns: [
-        'task_uuid',
-        'title',
-        'prompt',
-        'status',
-        'priority',
-        'position',
-        'claimed_by',
-        'claimed_at',
-        'created_at',
-        'updated_at'
-      ]
-    },
-    {
-      table: 'prompt_runs',
-      rows: local.prompt_runs as unknown as Record<string, unknown>[],
-      columns: [
-        'prompt_uuid',
-        'agent_id',
-        'status',
-        'summary',
-        'error',
-        'started_at',
-        'finished_at'
-      ]
-    }
-  ];
+    { table: 'tasks', rows: local.tasks as unknown as Record<string, unknown>[] },
+    { table: 'prompts', rows: local.prompts as unknown as Record<string, unknown>[] },
+    { table: 'prompt_runs', rows: local.prompt_runs as unknown as Record<string, unknown>[] }
+  ].map(({ table, rows }) => ({ table, rows, columns: syncedColumns(table) }));
 
   for (const { table, rows, columns } of MUTABLE_REMOTE) {
     for (const row of rows) {

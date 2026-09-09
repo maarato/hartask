@@ -168,6 +168,23 @@ describe('syncWithRemoteStore', () => {
     expect(on(laptop, () => listTasks()).map((t) => t.title)).toEqual(['laptop project work']);
   });
 
+  /**
+   * The store adapter used to keep its own list of columns to push, separate
+   * from the changeset spec. When a column was added to one and not the other
+   * the push still succeeded and the value simply never arrived, which is the
+   * kind of bug that only shows up as a blank field weeks later.
+   */
+  it('puts every column the changeset carries into the store', async () => {
+    on(laptop, () => createTask({ title: 'Wire the store', category: 'sync' }));
+
+    const { project_uuid } = await sync(laptop);
+
+    expect((await readStore('tasks'))[0].category).toBe('sync');
+
+    await sync(desktop, project_uuid);
+    expect(on(desktop, () => listTasks())[0].category).toBe('sync');
+  });
+
   it('carries the prompt queue and its runs through the store', async () => {
     const { project_uuid } = await (async () => {
       on(laptop, () => {

@@ -76,6 +76,18 @@ type MutableSpec = {
   claimField?: string;
 };
 
+/**
+ * The columns a mutable table puts on the wire, links already resolved to
+ * uuids. The remote store adapter builds its INSERT from this rather than from
+ * a list of its own: two lists of the same thing drift, and the way this one
+ * fails is silence — the push succeeds and the column simply never arrives.
+ */
+export function syncedColumns(table: string): string[] {
+  const spec = MUTABLE.find((candidate) => candidate.table === table);
+  if (!spec) throw new Error(`No mutable sync spec for table: ${table}`);
+  return [...(spec.link ? [spec.link.uuidField] : []), ...spec.columns];
+}
+
 const MUTABLE: MutableSpec[] = [
   {
     table: 'tasks',
