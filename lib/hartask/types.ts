@@ -61,6 +61,31 @@ export type Task = SyncFields & {
 
 export type TaskNode = Task & { children: TaskNode[] };
 
+/**
+ * A document agents write for each other: durable, mutable, and narrower than
+ * the whole project. Addressed by slug, because the same document on two
+ * machines has two row ids and one name.
+ */
+export type SharedContext = SyncFields & {
+  id: number;
+  slug: string;
+  title: string;
+  purpose: string | null;
+  body: string | null;
+  category: string | null;
+  /** Public id of the task this was last known to be true as of. */
+  valid_as_of: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
+ * A document without its body. Listings use this so knowing what exists never
+ * costs the cost of reading everything — the guard that keeps the collection
+ * from becoming write-only.
+ */
+export type SharedContextSummary = Omit<SharedContext, 'body'>;
+
 export type TaskNote = SyncFields & {
   id: number;
   task_id: number;

@@ -145,3 +145,35 @@ CREATE TABLE IF NOT EXISTS harness_scans (
   finished_at TEXT,
   summary_json TEXT
 );
+
+-- Shared contexts: documents an agent writes for the next agent, and for the
+-- one on another machine. Rows rather than files on disk, so they sync, carry
+-- an event trail, and are addressable in a store that holds several projects.
+--
+-- The boundary that keeps this from duplicating the repo's own docs: anything
+-- that must travel with a clone belongs in git; this table is for what
+-- describes the ongoing work of one project.
+CREATE TABLE IF NOT EXISTS shared_contexts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  uuid TEXT,
+  origin TEXT,
+  lamport INTEGER NOT NULL DEFAULT 0,
+  synced_lamport INTEGER NOT NULL DEFAULT 0,
+  -- Addressed by slug, not by row id: the same document on two machines has
+  -- two row ids and one slug, and the slug is what an agent asks for.
+  slug TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  -- One line, carried in listings so a reader can tell whether to open it
+  -- without paying for the body.
+  purpose TEXT,
+  body TEXT,
+  -- Same vocabulary as tasks, normalised through the same function.
+  category TEXT,
+  -- The task this was last known to be true as of, as a public id. A plain
+  -- string and not a link: it is a marker on prose rather than a foreign key,
+  -- and a document whose reference cannot be resolved should still be
+  -- readable rather than fail to load.
+  valid_as_of TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

@@ -54,7 +54,8 @@ const SYNCED_TABLES = [
   'task_events',
   'project_handoff',
   'prompts',
-  'prompt_runs'
+  'prompt_runs',
+  'shared_contexts'
 ];
 
 function addColumns(db: DbHandle): void {

@@ -15,6 +15,7 @@ export function resetDb(): void {
     DELETE FROM prompt_runs;
     DELETE FROM prompts;
     DELETE FROM project_handoff;
+    DELETE FROM shared_contexts;
     DELETE FROM harness_components;
     DELETE FROM harness_scans;
     DELETE FROM tasks;
