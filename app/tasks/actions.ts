@@ -60,10 +60,25 @@ export async function createTaskAction(formData: FormData): Promise<void> {
     status: isTaskStatus(status) ? status : 'BACKLOG',
     nextAction: text(formData, 'next_action'),
     description: text(formData, 'description'),
-    parentId: parentId ? Number(parentId) : null
+    parentId: parentId ? Number(parentId) : null,
+    category: text(formData, 'category')
   });
 
   afterMutation();
+}
+
+/**
+ * A category is optional, so an emptied field means "take it out of the
+ * category" rather than "leave it as it was". `text` returns null for a blank
+ * field, which is exactly the value that clears the column.
+ */
+export async function setTaskCategoryAction(formData: FormData): Promise<void> {
+  const publicId = text(formData, 'public_id');
+  if (!publicId) return;
+
+  updateTask(publicId, { category: text(formData, 'category') });
+
+  revalidateTasks();
 }
 
 export async function setTaskStatusAction(formData: FormData): Promise<void> {
@@ -97,6 +112,7 @@ export async function saveTaskDetailsAction(formData: FormData): Promise<void> {
     title,
     description: text(formData, 'description'),
     nextAction: text(formData, 'next_action'),
+    category: text(formData, 'category'),
     priority: priority !== null && Number.isFinite(Number(priority)) ? Number(priority) : undefined
   });
 

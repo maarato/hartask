@@ -5,6 +5,8 @@ import {
   countArchivableRoots,
   countArchivableRootsByStatus,
   countTasksByStatus,
+  countUncategorized,
+  listCategories,
   listEvents,
   listTasks,
   listTaskTree
@@ -22,6 +24,7 @@ import {
   archiveTaskAction,
   createTaskAction,
   setNextActionAction,
+  setTaskCategoryAction,
   setTaskStatusAction,
   unarchiveTaskAction
 } from './actions';
@@ -78,6 +81,7 @@ function TaskCard({ node, depth }: { node: TaskNode; depth: number }) {
             </Link>{' '}
             · {node.title}
           </span>
+          {node.category ? <span className="category">{node.category}</span> : null}
           {node.children.length ? (
             <span className="muted small">
               {open
@@ -120,6 +124,18 @@ function TaskCard({ node, depth }: { node: TaskNode; depth: number }) {
           <button type="submit">Guardar</button>
         </form>
 
+        <form action={setTaskCategoryAction} className="row">
+          <input type="hidden" name="public_id" value={node.public_id} />
+          <input
+            name="category"
+            defaultValue={node.category ?? ''}
+            list="hartask-categories"
+            placeholder="Categoría (vacío = ninguna)"
+            aria-label={`Categoría de ${node.public_id}`}
+          />
+          <button type="submit">Guardar</button>
+        </form>
+
         <form action={setTaskStatusAction} className="row">
           <input type="hidden" name="public_id" value={node.public_id} />
           <select
@@ -144,6 +160,53 @@ function TaskCard({ node, depth }: { node: TaskNode; depth: number }) {
         ))}
       </div>
     </details>
+  );
+}
+
+/**
+ * Filters the board to one area. Links rather than a control, so the choice is
+ * in the URL: it survives a reload, and it can be shared or bookmarked.
+ *
+ * Renders nothing when no task has a category, which is the state a board
+ * starts in — an empty filter bar would only be noise until someone uses one.
+ */
+function CategoryFilter({
+  categories,
+  uncategorized,
+  active,
+  onlyUncategorized
+}: {
+  categories: { name: string; count: number }[];
+  uncategorized: number;
+  active: string | null;
+  onlyUncategorized: boolean;
+}) {
+  if (!categories.length) return null;
+  const showingAll = !active && !onlyUncategorized;
+
+  return (
+    <div className="chips filters">
+      <Link href="/tasks" className={showingAll ? 'chip chip-on' : 'chip'}>
+        Todas
+      </Link>
+      {categories.map((category) => (
+        <Link
+          key={category.name}
+          href={`/tasks?category=${encodeURIComponent(category.name)}`}
+          className={active === category.name ? 'chip chip-on' : 'chip'}
+        >
+          {category.name} <span className="muted">· {category.count}</span>
+        </Link>
+      ))}
+      {uncategorized ? (
+        <Link
+          href="/tasks?uncategorized=1"
+          className={onlyUncategorized ? 'chip chip-on' : 'chip'}
+        >
+          Sin categoría <span className="muted">· {uncategorized}</span>
+        </Link>
+      ) : null}
+    </div>
   );
 }
 
@@ -219,7 +282,7 @@ function ArchiveReminder({
             </span>
           </label>
 
-          <div className="row">
+          <div className="row modal-actions">
             <button type="submit">Archivar</button>
             <button type="button" popoverTarget="archive-all" popoverTargetAction="hide">
               Cancelar
@@ -280,6 +343,15 @@ function NewTaskForm({ parents }: { parents: Task[] }) {
       <form action={createTaskAction} className="stack form">
         <input name="title" placeholder="Título" required />
         <input name="next_action" placeholder="Siguiente acción (opcional)" />
+        {/* Free text with the existing names offered: a category is a label,
+            not a managed entity, and typing a new one has to stay as easy as
+            picking one that exists. */}
+        <input
+          name="category"
+          list="hartask-categories"
+          placeholder="Categoría (opcional)"
+          aria-label="Categoría"
+        />
         <textarea name="description" placeholder="Descripción (opcional)" rows={3} />
         <div className="row">
           <select name="status" defaultValue="BACKLOG" aria-label="Estado inicial">
@@ -304,10 +376,26 @@ function NewTaskForm({ parents }: { parents: Task[] }) {
   );
 }
 
-export default function TasksPage() {
+export default async function TasksPage({
+  searchParams
+}: {
+  searchParams: Promise<{ category?: string; uncategorized?: string }>;
+}) {
   ensureProject();
 
-  const tree = listTaskTree();
+  const params = await searchParams;
+  const onlyUncategorized = params.uncategorized === '1';
+  const active = onlyUncategorized ? null : (params.category?.trim() || null);
+  // Undefined is no filter; null is the tasks that have no category, which is
+  // a different question from "show me everything".
+  const categoryFilter = onlyUncategorized ? null : (active ?? undefined);
+
+  const categories = listCategories();
+  const uncategorized = countUncategorized();
+
+  const tree = listTaskTree({ category: categoryFilter });
+  // Unfiltered: the parent picker and the datalist describe the whole board,
+  // not the slice being looked at.
   const flat = listTasks();
   const archived = listTaskTree({ onlyArchived: true });
   const counts = countTasksByStatus();
@@ -332,6 +420,21 @@ export default function TasksPage() {
         {flat.length === 0 ? <span className="muted">Sin tasks activas.</span> : null}
       </div>
 
+      <CategoryFilter
+        categories={categories}
+        uncategorized={uncategorized}
+        active={active}
+        onlyUncategorized={onlyUncategorized}
+      />
+
+      {/* One list for every category field on the page: the create form and
+          each card's editor all offer the names already in use. */}
+      <datalist id="hartask-categories">
+        {categories.map((category) => (
+          <option key={category.name} value={category.name} />
+        ))}
+      </datalist>
+
       {archivable > threshold ? (
         <ArchiveReminder
           count={archivable}
@@ -343,7 +446,14 @@ export default function TasksPage() {
 
       <NewTaskForm parents={flat} />
 
-      {tree.length === 0 ? (
+      {tree.length === 0 && (active || onlyUncategorized) ? (
+        <article className="card">
+          <p className="muted">
+            Ninguna task {onlyUncategorized ? 'sin categoría' : <>en <strong>{active}</strong></>}.{' '}
+            <Link href="/tasks">Ver todas</Link>.
+          </p>
+        </article>
+      ) : tree.length === 0 ? (
         <article className="card">
           <p className="muted">
             No hay tasks en el board. Crea una arriba

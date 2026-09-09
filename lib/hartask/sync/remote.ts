@@ -51,7 +51,7 @@ const REMOTE_SCHEMA = [
      public_id TEXT NOT NULL, parent_uuid TEXT,
      title TEXT NOT NULL, description TEXT, status TEXT NOT NULL,
      priority INTEGER NOT NULL DEFAULT 0, next_action TEXT, blocked_reason TEXT,
-     archived_at TEXT, created_at TEXT, updated_at TEXT
+     category TEXT, archived_at TEXT, created_at TEXT, updated_at TEXT
    )`,
   `CREATE TABLE IF NOT EXISTS task_notes (
      uuid TEXT PRIMARY KEY,
@@ -97,6 +97,18 @@ const REMOTE_SCHEMA = [
   `CREATE INDEX IF NOT EXISTS idx_handoff_project ON project_handoff(project_uuid)`
 ];
 
+/**
+ * Columns added to the remote after a store already existed.
+ *
+ * `CREATE TABLE IF NOT EXISTS` does nothing to a table that is already there,
+ * so without this a new column would simply never reach a store that had been
+ * synced before — the push would keep succeeding and quietly drop the value.
+ * Same shape and same rule as ADDED_COLUMNS locally: additive only.
+ */
+const REMOTE_ADDED_COLUMNS: { table: string; column: string; definition: string }[] = [
+  { table: 'tasks', column: 'category', definition: 'TEXT' }
+];
+
 const APPEND_COLUMNS = {
   task_notes: ['task_uuid', 'body', 'author_type', 'created_at'],
   task_events: [
@@ -136,6 +148,12 @@ function openRemote(): Client {
 
 async function ensureRemoteSchema(client: Client): Promise<string> {
   for (const statement of REMOTE_SCHEMA) await client.execute(statement);
+
+  for (const { table, column, definition } of REMOTE_ADDED_COLUMNS) {
+    const info = await client.execute(`PRAGMA table_info(${table})`);
+    if (info.rows.some((row) => row.name === column)) continue;
+    await client.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
 
   const existing = await client.execute({
     sql: `SELECT value FROM sync_meta WHERE key = 'store_origin'`,

@@ -121,6 +121,16 @@ export default async function TaskDetailPage({ params }: PageProps) {
           ) : null}
           <dt>Prioridad</dt>
           <dd>{task.priority}</dd>
+          <dt>Categoría</dt>
+          <dd>
+            {task.category ? (
+              <Link href={`/tasks?category=${encodeURIComponent(task.category)}`}>
+                <span className="category">{task.category}</span>
+              </Link>
+            ) : (
+              <span className="muted">Sin categoría</span>
+            )}
+          </dd>
         </dl>
 
         <form action={setTaskStatusAction} className="row">
@@ -145,6 +155,12 @@ export default async function TaskDetailPage({ params }: PageProps) {
               name="next_action"
               defaultValue={task.next_action ?? ''}
               placeholder="Siguiente acción"
+            />
+            <input
+              name="category"
+              defaultValue={task.category ?? ''}
+              placeholder="Categoría (vacío = ninguna)"
+              aria-label="Categoría"
             />
             <textarea
               name="description"

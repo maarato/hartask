@@ -5,6 +5,8 @@ import {
   countArchivableRoots,
   countArchivableRootsByStatus,
   countTasksByStatus,
+  countUncategorized,
+  listCategories,
   createTask,
   getCurrentTask,
   getTask,
@@ -12,6 +14,7 @@ import {
   listEvents,
   listTasks,
   listTaskTree,
+  normalizeCategory,
   setTaskStatus,
   unarchiveTask,
   updateTask
@@ -295,5 +298,89 @@ describe('countArchivableRootsByStatus', () => {
     createTask({ title: 'done', status: 'DONE' });
 
     expect(countArchivableRootsByStatus()).toEqual({ DONE: 1, BACKLOG: 0 });
+  });
+});
+
+
+describe('categories', () => {
+  it('leaves a task without one, because a category is optional', () => {
+    expect(createTask({ title: 'no category' }).category).toBeNull();
+  });
+
+  it('stores the one it was given', () => {
+    expect(createTask({ title: 'sync work', category: 'sync' }).category).toBe('sync');
+  });
+
+  it('treats a blank category as no category rather than as an empty one', () => {
+    expect(createTask({ title: 'blank', category: '   ' }).category).toBeNull();
+  });
+
+  it('trims and collapses whitespace instead of storing it', () => {
+    expect(createTask({ title: 'padded', category: '  data   layer ' }).category).toBe('data layer');
+  });
+
+  // Otherwise a board slowly grows "Sync", "sync" and "SYNC" as three areas.
+  it('reuses the spelling already on the board when only the case differs', () => {
+    createTask({ title: 'first', category: 'Sync' });
+
+    expect(createTask({ title: 'second', category: 'sync' }).category).toBe('Sync');
+    expect(listCategories()).toHaveLength(1);
+  });
+
+  it('takes a task out of its category when the field is cleared', () => {
+    const task = createTask({ title: 'categorised', category: 'ui' });
+
+    expect(updateTask(task.id, { category: null }).category).toBeNull();
+  });
+
+  it('leaves the category alone when the patch does not mention it', () => {
+    const task = createTask({ title: 'categorised', category: 'ui' });
+
+    expect(updateTask(task.id, { title: 'renamed' }).category).toBe('ui');
+  });
+
+  it('normalises on update as well as on create', () => {
+    const task = createTask({ title: 'a' });
+    createTask({ title: 'b', category: 'Harness' });
+
+    expect(updateTask(task.id, { category: ' harness ' }).category).toBe('Harness');
+  });
+
+  it('filters the board to one area, matching case-insensitively', () => {
+    createTask({ title: 'one', category: 'Sync' });
+    createTask({ title: 'two', category: 'ui' });
+
+    expect(listTasks({ category: 'sync' }).map((task) => task.title)).toEqual(['one']);
+  });
+
+  it('can ask for the tasks that have no category at all', () => {
+    createTask({ title: 'plain' });
+    createTask({ title: 'labelled', category: 'ui' });
+
+    expect(listTasks({ category: null }).map((task) => task.title)).toEqual(['plain']);
+  });
+
+  // undefined is "did not ask"; null is a real question with a real answer.
+  it('does not filter when no category was asked for', () => {
+    createTask({ title: 'plain' });
+    createTask({ title: 'labelled', category: 'ui' });
+
+    expect(listTasks()).toHaveLength(2);
+  });
+
+  it('counts what is in use for the filter, ignoring archived tasks', () => {
+    createTask({ title: 'one', category: 'sync' });
+    createTask({ title: 'two', category: 'sync' });
+    const gone = createTask({ title: 'three', category: 'ui', status: 'DONE' });
+    createTask({ title: 'plain' });
+    archiveTask(gone.id);
+
+    expect(listCategories()).toEqual([{ name: 'sync', count: 2 }]);
+    expect(countUncategorized()).toBe(1);
+  });
+
+  it('normalizeCategory passes a missing value through untouched', () => {
+    expect(normalizeCategory(undefined)).toBeNull();
+    expect(normalizeCategory(null)).toBeNull();
   });
 });

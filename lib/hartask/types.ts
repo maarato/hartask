@@ -51,6 +51,8 @@ export type Task = SyncFields & {
   priority: number;
   next_action: string | null;
   blocked_reason: string | null;
+  /** Free label grouping tasks by area. Null is a first-class value here. */
+  category: string | null;
   /** ISO timestamp when the task was archived; null while it is on the board. */
   archived_at: string | null;
   created_at: string;

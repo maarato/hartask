@@ -32,6 +32,12 @@ export type ListTasksFilter = {
   /** Archived tasks are off the board unless explicitly asked for. */
   includeArchived?: boolean;
   onlyArchived?: boolean;
+  /**
+   * A category name, or null for the tasks that have none. Undefined means no
+   * filter at all — "no category" is a real thing to ask for, so it cannot be
+   * the same value as "did not ask".
+   */
+  category?: string | null;
 };
 
 /** Flat list, ordered by STATUS_ORDER, then priority, then oldest first. */
@@ -50,6 +56,13 @@ export function listTasks(filter: ListTasksFilter = {}): Task[] {
   if (filter.parentId !== undefined) {
     where.push(filter.parentId === null ? `parent_id IS NULL` : `parent_id = ?`);
     if (filter.parentId !== null) params.push(filter.parentId);
+  }
+
+  if (filter.category !== undefined) {
+    // Matched case-insensitively so a board that has both "Sync" and "sync"
+    // still filters as one thing.
+    where.push(filter.category === null ? `category IS NULL` : `category = ? COLLATE NOCASE`);
+    if (filter.category !== null) params.push(filter.category);
   }
 
   if (filter.onlyArchived) where.push(`archived_at IS NOT NULL`);
@@ -134,8 +147,48 @@ export type CreateTaskInput = {
   parentId?: number | null;
   priority?: number;
   nextAction?: string | null;
+  category?: string | null;
   agentId?: string | null;
 };
+
+/**
+ * Categories are free text, so the same area can arrive spelled two ways.
+ * Whitespace is trimmed and an empty string becomes null — a task with a
+ * category of "" is not a category, it is a task without one. When the board
+ * already knows this name under a different case, that existing spelling wins,
+ * which keeps "Sync" and "sync" from becoming two columns in the filter.
+ */
+export function normalizeCategory(value: string | null | undefined): string | null {
+  if (value === undefined || value === null) return value ?? null;
+  const trimmed = value.trim().replace(/\s+/g, ' ');
+  if (!trimmed) return null;
+
+  const existing = getDb()
+    .prepare(`SELECT category FROM tasks WHERE category = ? COLLATE NOCASE LIMIT 1`)
+    .get(trimmed) as { category: string } | undefined;
+
+  return existing?.category ?? trimmed;
+}
+
+/** Categories in use, with how many live tasks carry each, for the board filter. */
+export function listCategories(): { name: string; count: number }[] {
+  return getDb()
+    .prepare(
+      `SELECT category AS name, COUNT(*) AS count FROM tasks
+       WHERE category IS NOT NULL AND archived_at IS NULL
+       GROUP BY category COLLATE NOCASE
+       ORDER BY name COLLATE NOCASE ASC`
+    )
+    .all() as { name: string; count: number }[];
+}
+
+/** How many live tasks carry no category, so the filter can offer that too. */
+export function countUncategorized(): number {
+  const row = getDb()
+    .prepare(`SELECT COUNT(*) AS total FROM tasks WHERE category IS NULL AND archived_at IS NULL`)
+    .get() as { total: number };
+  return row.total;
+}
 
 /**
  * Ids are minted per origin. Each origin only ever scans its own prefix, so
@@ -169,8 +222,8 @@ export function createTask(input: CreateTaskInput): Task {
     const stamp = localStamp();
     const info = db
       .prepare(
-        `INSERT INTO tasks (uuid, origin, lamport, public_id, parent_id, title, description, status, priority, next_action)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO tasks (uuid, origin, lamport, public_id, parent_id, title, description, status, priority, next_action, category)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         stamp.uuid,
@@ -182,7 +235,8 @@ export function createTask(input: CreateTaskInput): Task {
         data.description ?? null,
         data.status ?? 'BACKLOG',
         data.priority ?? 0,
-        data.nextAction ?? null
+        data.nextAction ?? null,
+        normalizeCategory(data.category)
       );
 
     const task = db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(info.lastInsertRowid) as Task;
@@ -208,6 +262,7 @@ export type UpdateTaskInput = {
   nextAction?: string | null;
   blockedReason?: string | null;
   parentId?: number | null;
+  category?: string | null;
   agentId?: string | null;
 };
 
@@ -218,7 +273,8 @@ const UPDATABLE_COLUMNS: Record<keyof Omit<UpdateTaskInput, 'agentId'>, string> 
   priority: 'priority',
   nextAction: 'next_action',
   blockedReason: 'blocked_reason',
-  parentId: 'parent_id'
+  parentId: 'parent_id',
+  category: 'category'
 };
 
 export function updateTask(ref: number | string, patch: UpdateTaskInput): Task {
@@ -235,7 +291,7 @@ export function updateTask(ref: number | string, patch: UpdateTaskInput): Task {
       const value = patch[key as keyof typeof UPDATABLE_COLUMNS];
       if (value === undefined) continue;
       sets.push(`${column} = ?`);
-      params.push(value);
+      params.push(key === 'category' ? normalizeCategory(value as string | null) : value);
     }
 
     if (sets.length) {

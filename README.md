@@ -1009,6 +1009,11 @@ Working end to end:
 - Mermaid diagrams: Summary draws any ```mermaid block in the Project Context,
   and Harness draws itself from the scan, so that picture cannot drift from
   what is on disk;
+- optional categories: a free-text label grouping tasks by area, with the board
+  filterable to one of them from the URL. Nullable on purpose — a task without a
+  category is normal, not incomplete — and a name that already exists under a
+  different case reuses that spelling, so a board does not grow "Sync", "sync"
+  and "SYNC" as three areas;
 - task detail at `/tasks/[id]`: the task's own notes and its complete event
   timeline, which the board cannot show because it only lists the last events
   across the project;

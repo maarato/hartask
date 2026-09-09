@@ -150,10 +150,14 @@ export function createHartaskMcpServer(): McpServer {
         next_action: z.string().optional(),
         parent_id: z.string().optional().describe('Public or numeric id of the parent task'),
         priority: z.number().optional(),
+        category: z
+          .string()
+          .optional()
+          .describe('Optional area label, e.g. "sync". Reuses an existing spelling if one matches'),
         agent_id: z.string().optional()
       }
     },
-    async ({ title, description, status, next_action, parent_id, priority, agent_id }) => {
+    async ({ title, description, status, next_action, parent_id, priority, category, agent_id }) => {
       const parent = parent_id ? getTaskByRef(parent_id) : null;
       if (parent_id && !parent) return failure(`Parent task not found: ${parent_id}`);
       return json(
@@ -164,6 +168,7 @@ export function createHartaskMcpServer(): McpServer {
           nextAction: next_action,
           parentId: parent?.id ?? null,
           priority,
+          category,
           agentId: agent_id ?? 'mcp'
         })
       );
@@ -210,10 +215,15 @@ export function createHartaskMcpServer(): McpServer {
         title: z.string().optional(),
         next_action: z.string().optional(),
         blocked_reason: z.string().optional().describe('Why it is blocked, when status is BLOCKED'),
+        category: z
+          .string()
+          .nullable()
+          .optional()
+          .describe('Area label. Pass null to take the task out of its category'),
         agent_id: z.string().optional()
       }
     },
-    async ({ id, status, title, next_action, blocked_reason, agent_id }) => {
+    async ({ id, status, title, next_action, blocked_reason, category, agent_id }) => {
       const task = getTaskByRef(id);
       if (!task) return failure(`Task not found: ${id}`);
       return json(
@@ -222,6 +232,7 @@ export function createHartaskMcpServer(): McpServer {
           title,
           nextAction: next_action,
           blockedReason: blocked_reason,
+          category,
           agentId: agent_id ?? 'mcp'
         })
       );

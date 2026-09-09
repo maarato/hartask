@@ -66,6 +66,14 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     priority: typeof body.priority === 'number' ? body.priority : undefined,
     nextAction: typeof body.next_action === 'string' ? body.next_action : undefined,
     blockedReason: typeof body.blocked_reason === 'string' ? body.blocked_reason : undefined,
+    // Explicit null clears the category, which an omitted field cannot do:
+    // taking a task out of a category has to be as expressible as setting one.
+    category:
+      body.category === null
+        ? null
+        : typeof body.category === 'string'
+          ? body.category
+          : undefined,
     agentId: typeof body.agent_id === 'string' ? body.agent_id : null
   });
 

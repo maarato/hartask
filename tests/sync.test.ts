@@ -123,6 +123,26 @@ describe('propagation', () => {
 });
 
 describe('prompt stack', () => {
+  // A column that is not listed in the changeset syncs as silence: the push
+  // succeeds and the value simply never arrives.
+  it('carries the category across', () => {
+    const task = on(laptop, () => createTask({ title: 'Wire the store', category: 'sync' }));
+
+    sync(laptop, cloud);
+
+    expect(on(cloud, () => getTask(task.public_id))!.category).toBe('sync');
+  });
+
+  it('carries a category being cleared, not just one being set', () => {
+    const task = on(laptop, () => createTask({ title: 'Wire the store', category: 'sync' }));
+    sync(laptop, cloud);
+
+    on(laptop, () => updateTask(task.id, { category: null }));
+    sync(laptop, cloud);
+
+    expect(on(cloud, () => getTask(task.public_id))!.category).toBeNull();
+  });
+
   it('carries a prompt and keeps its link to the task', () => {
     const task = on(laptop, () => createTask({ title: 'Add authentication' }));
     on(laptop, () => insertPrompt({ prompt: 'Analyze the current auth', taskId: task.id }));

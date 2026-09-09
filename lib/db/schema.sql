@@ -42,6 +42,9 @@ CREATE TABLE IF NOT EXISTS tasks (
   priority INTEGER NOT NULL DEFAULT 0,
   next_action TEXT,
   blocked_reason TEXT,
+  -- Optional label grouping tasks by the part of the product they touch.
+  -- Nullable on purpose: a task without one is normal, not incomplete.
+  category TEXT,
   -- Orthogonal to status: archiving hides a task from the board without
   -- losing whether it was finished or abandoned.
   archived_at TEXT,

@@ -87,6 +87,7 @@ const MUTABLE: MutableSpec[] = [
       'priority',
       'next_action',
       'blocked_reason',
+      'category',
       'archived_at',
       'created_at',
       'updated_at'
@@ -98,6 +99,7 @@ const MUTABLE: MutableSpec[] = [
       'priority',
       'next_action',
       'blocked_reason',
+      'category',
       'archived_at'
     ],
     link: { column: 'parent_id', uuidField: 'parent_uuid', table: 'tasks' },

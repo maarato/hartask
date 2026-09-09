@@ -148,6 +148,21 @@ summary { cursor:pointer; }
 .chips { display:flex; flex-wrap:wrap; gap:6px; }
 .chips code { font-size:12px; }
 
+/* Category: a label on the task, and the same label as a filter link. Quieter
+   than the status badge on purpose — status is what you scan for, the area is
+   what you group by afterwards. */
+.category {
+  font-size:11px; letter-spacing:0.02em; padding:2px 8px; border-radius:999px;
+  border:1px solid #34405a; background:#1a2130; color:#a9bde4; white-space:nowrap;
+}
+.filters { margin:2px 0 0; align-items:center; }
+.chip {
+  font-size:12px; padding:3px 10px; border-radius:999px; text-decoration:none;
+  border:1px solid #262d38; background:#161b22; color:#c3cad4;
+}
+.chip:hover { border-color:#3a4350; background:#1b222b; }
+.chip-on { border-color:#3d6be0; background:#1b2740; color:#dbe6ff; }
+
 /* Task detail. The public id is the permalink into the detail view, so it is
    the part of the card title that reads as a link. */
 .task-link { color:#9dbaff; }
@@ -182,4 +197,8 @@ summary { cursor:pointer; }
    rule and shows the form inline, which is the harmless way to be wrong. */
 .modal:not(:popover-open) { display:none; }
 .modal::backdrop { background:rgba(8, 10, 13, 0.66); }
-.modal .row { justify-content:flex-end; }
+/* Only the buttons hug the right edge. Scoping this to `.row` also caught the
+   checkbox rows, and since each one is a different width they ended up
+   starting at a different place — the checkboxes never lined up. */
+.modal-actions { justify-content:flex-end; }
+.modal .checkbox { align-items:center; }
