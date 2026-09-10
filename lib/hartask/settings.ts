@@ -21,6 +21,7 @@ import {
  * a change that silently does nothing until a restart.
  */
 export const EDITABLE_KEYS = [
+  'port',
   'projectName',
   'archiveReminderThreshold',
   'autoArchive',
@@ -68,6 +69,13 @@ const LABELS: Record<keyof HartaskConfig, string> = {
 
 const RESTART_NOTE = 'Se lee al arrancar; cambiarlo aquí no tendría efecto hasta reiniciar.';
 
+/**
+ * The port is the one editable setting that does not take effect immediately:
+ * Next binds it before any of this runs, so the launcher reads it at boot. The
+ * note says that plainly instead of implying the change is already live.
+ */
+const PORT_NOTE = 'Se aplica al reiniciar el servidor: el puerto se elige antes de arrancar.';
+
 const ENV_BACKED = new Set<string>(Object.keys(ENV_KEYS));
 
 function overrideFor(key: keyof HartaskConfig) {
@@ -88,10 +96,11 @@ export function listSettings(): SettingView[] {
     value: SECRET_KEYS.has(key) ? mask(Boolean(config[key])) : config[key],
     editable: true,
     secret: SECRET_KEYS.has(key),
+    ...(key === 'port' ? { note: PORT_NOTE } : {}),
     override: overrideFor(key)
   }));
 
-  const readOnly: SettingView[] = (['port', 'database', 'projectRoot'] as const).map((key) => ({
+  const readOnly: SettingView[] = (['database', 'projectRoot'] as const).map((key) => ({
     key,
     label: LABELS[key],
     value: config[key],
@@ -138,6 +147,15 @@ export function saveSettings(patch: SettingsPatch): HartaskConfig {
   // An empty submission leaves the stored secret alone, so saving the rest of
   // the form does not wipe a token the page never showed.
   if (patch.syncToken) next.syncToken = patch.syncToken;
+  if (patch.port !== undefined) {
+    const port = Math.trunc(patch.port);
+    // Below 1024 needs privileges and above 65535 does not exist, so either is
+    // a typo that would only surface as a server that refuses to start.
+    if (!Number.isFinite(port) || port < 1024 || port > 65535) {
+      throw new Error('port must be a whole number between 1024 and 65535');
+    }
+    next.port = port;
+  }
   if (patch.archiveReminderThreshold !== undefined) {
     const threshold = Math.trunc(patch.archiveReminderThreshold);
     if (!Number.isFinite(threshold) || threshold < 0) {

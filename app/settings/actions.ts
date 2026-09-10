@@ -17,9 +17,15 @@ export async function saveSettingsAction(formData: FormData): Promise<void> {
   const projectName = text(formData, 'projectName');
   const threshold = text(formData, 'archiveReminderThreshold');
   const parsed = threshold === null ? null : Number(threshold);
+  const port = text(formData, 'port');
+  const parsedPort = port === null ? null : Number(port);
 
   const config = saveSettings({
     projectName: projectName ?? undefined,
+    // saveSettings rejects a port that cannot be served; passing undefined for
+    // something unparseable keeps the stored one rather than throwing at a
+    // user who mistyped a digit.
+    port: parsedPort !== null && Number.isFinite(parsedPort) ? parsedPort : undefined,
     archiveReminderThreshold:
       parsed !== null && Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined,
     syncUrl: formData.has('syncUrl') ? (text(formData, 'syncUrl') ?? '') : undefined,

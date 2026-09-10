@@ -19,10 +19,12 @@ beforeEach(() => {
   delete process.env.HARTASK_ARCHIVE_REMINDER_THRESHOLD;
   delete process.env.HARTASK_SYNC_TOKEN;
   delete process.env.HARTASK_AUTO_ARCHIVE;
+  delete process.env.HARTASK_PORT;
   resetConfigCache();
 });
 
 afterEach(() => {
+  delete process.env.HARTASK_PORT;
   delete process.env.HARTASK_PROJECT_NAME;
   delete process.env.HARTASK_ARCHIVE_REMINDER_THRESHOLD;
   delete process.env.HARTASK_SYNC_TOKEN;
@@ -129,6 +131,7 @@ describe('listSettings', () => {
     const readOnly = settings.filter((setting) => !setting.editable).map((setting) => setting.key);
 
     expect(editable).toEqual([
+      'port',
       'projectName',
       'archiveReminderThreshold',
       'autoArchive',
@@ -136,7 +139,7 @@ describe('listSettings', () => {
       'syncToken',
       'syncProjectId'
     ]);
-    expect(readOnly).toEqual(['port', 'database', 'projectRoot']);
+    expect(readOnly).toEqual(['database', 'projectRoot']);
   });
 
   it('never hands back the sync token, only whether one is set', () => {
@@ -202,5 +205,49 @@ describe('redactedConfig', () => {
 
     expect(redactedConfig().syncUrl).toBe('https://hartask.example.com');
     expect(redactedConfig().projectName).toBe('Demo');
+  });
+});
+
+
+describe('the port', () => {
+  it('defaults to the one Hartask has always used', () => {
+    expect(loadConfig().port).toBe(43127);
+  });
+
+  it('can be changed, which is the whole point of a second project', () => {
+    expect(saveSettings({ port: 43128 }).port).toBe(43128);
+    expect(storedFile().port).toBe(43128);
+  });
+
+  // The launcher hands the resolved port down, so what the app reports is the
+  // port it is actually served on and not a value nobody checked.
+  it('lets the launcher answer win over the file', () => {
+    saveSettings({ port: 43128 });
+    process.env.HARTASK_PORT = '43555';
+    resetConfigCache();
+
+    expect(loadConfig().port).toBe(43555);
+  });
+
+  it('reports the variable that is winning, like every other setting', () => {
+    process.env.HARTASK_PORT = '43555';
+    resetConfigCache();
+
+    const view = listSettings().find((setting) => setting.key === 'port');
+    expect(view?.override?.name).toBe('HARTASK_PORT');
+  });
+
+  // A port that cannot be served would only surface as a server that refuses
+  // to start, long after the value was typed.
+  it('refuses a port nothing could listen on', () => {
+    expect(() => saveSettings({ port: 80 })).toThrow(/between 1024 and 65535/i);
+    expect(() => saveSettings({ port: 70000 })).toThrow(/between 1024 and 65535/i);
+    expect(() => saveSettings({ port: 43128.7 })).not.toThrow();
+  });
+
+  it('says it applies on restart, rather than implying it is already live', () => {
+    const view = listSettings().find((setting) => setting.key === 'port');
+    expect(view?.editable).toBe(true);
+    expect(view?.note).toMatch(/reiniciar/i);
   });
 });

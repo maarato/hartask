@@ -103,6 +103,7 @@ function ReadOnlyRow({ setting }: { setting: SettingView }) {
 export default function SettingsPage() {
   const settings = listSettings();
   const byKey = new Map(settings.map((setting) => [setting.key, setting]));
+  const port = byKey.get('port')!;
   const projectName = byKey.get('projectName')!;
   const threshold = byKey.get('archiveReminderThreshold')!;
   const sync = byKey.get('syncUrl')!;
@@ -133,6 +134,20 @@ export default function SettingsPage() {
             <span>{projectName.label}</span>
             <input name="projectName" defaultValue={String(projectName.value)} required />
             {projectName.override ? <OverrideNote override={projectName.override} /> : null}
+          </label>
+
+          <label className="stack field">
+            <span>{port.label}</span>
+            <input
+              name="port"
+              type="number"
+              min={1024}
+              max={65535}
+              defaultValue={String(port.value)}
+              required
+            />
+            <span className="muted small">{port.note}</span>
+            {port.override ? <OverrideNote override={port.override} /> : null}
           </label>
 
           <label className="stack field">

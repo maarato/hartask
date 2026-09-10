@@ -798,7 +798,9 @@ Hartask V1 deliberately avoids separate frontend and backend processes.
 
 The starter uses Next.js full-stack so one process can serve the UI and server routes.
 
-Default:
+Default, and a setting rather than a constant — `port` in `hartask.config.json`,
+or `HARTASK_PORT`, decided by `scripts/serve.mjs` before Next binds it, which is
+what lets several projects run their own board at once:
 
 ```text
 PORT 43127
@@ -987,9 +989,10 @@ Working end to end:
   (`HARTASK_CONFIG`, `HARTASK_DATABASE`, `HARTASK_PROJECT_NAME`,
   `HARTASK_ARCHIVE_REMINDER_THRESHOLD`) taking precedence, so a single run can
   be redirected without editing the file;
-- settings page at `/settings` writing that file, editing only what takes
-  effect immediately and saying when an environment variable is overriding a
-  value, plus `GET/PATCH /api/settings`. The sync token is never read back —
+- settings page at `/settings` writing that file, saying when an environment
+  variable is overriding a value, plus `GET/PATCH /api/settings`. Everything
+  there takes effect immediately except the port, which is chosen before the
+  server starts and says so. The sync token is never read back —
   not by the page, not by the API, and not through the override notice: every
   path answers `configurado` or `sin configurar`;
 - task repository: list, hierarchy tree, get, create, update, status

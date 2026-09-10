@@ -62,6 +62,7 @@ export const DEFAULT_CONFIG: HartaskConfig = {
  * of them is winning.
  */
 export const ENV_KEYS = {
+  port: 'HARTASK_PORT',
   database: 'HARTASK_DATABASE',
   projectName: 'HARTASK_PROJECT_NAME',
   archiveReminderThreshold: 'HARTASK_ARCHIVE_REMINDER_THRESHOLD',
@@ -134,6 +135,10 @@ export function loadConfig(): HartaskConfig {
 
   cached = {
     ...merged,
+    // Read the same way the launcher reads it, so both reach the same answer
+    // from the same two places. Editing the port and not restarting shows the
+    // port that is about to be used, which is what the setting's note says.
+    port: readNumberEnv(ENV_KEYS.port, merged.port),
     database: process.env[ENV_KEYS.database] || merged.database,
     projectName: process.env[ENV_KEYS.projectName] || merged.projectName,
     archiveReminderThreshold: readNumberEnv(

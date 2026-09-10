@@ -9,10 +9,9 @@ This prompt only covers the two things neither of them does, because both happen
 before Hartask exists in the project:
 
 - **cloning it into the project**, which `FIRST-RUN.md` assumes has happened;
-- **the port**, which matters as soon as there is a second project. `npm run dev`
-  has 43127 hard-coded in `package.json`, and `port` in the config file is not
-  read by anything, so a second board on the same machine needs the port passed
-  on the command line.
+- **the port**, which matters as soon as there is a second project. It is a
+  real setting now: `hartask.config.json` decides it, `HARTASK_PORT` overrides
+  it, and `npm run dev` resolves both before starting the server.
 
 The prompt is in Spanish because that is the language of the boards it was
 written for. Translate it freely; nothing in it depends on the wording.
@@ -46,13 +45,12 @@ Pasos:
    y te dice qué preguntarme antes de actuar. En corto: **no migres tareas, no
    arranques el servidor y no sincronices sin preguntarme primero.**
 
-5. Puerto: el script `npm run dev` trae 43127 fijo y voy a tener varios
-   proyectos con Hartask a la vez, así que arráncalo con un puerto propio desde
-   `hartask/`:
+5. Puerto: voy a tener varios proyectos con Hartask a la vez, así que este
+   necesita el suyo. Ponlo en `hartask/hartask.config.json`:
 
-   npx next dev -p <PUERTO>
+   { "port": <PUERTO> }
 
-   Pregúntame cuál usar si no te lo dije.
+   Después `npm run dev` arranca ahí solo. Pregúntame cuál usar si no te lo dije.
 
 6. Sincronización con la base en la nube: crea `hartask/.env.local` con
 
@@ -78,8 +76,9 @@ valga la pena migrar al board.
 ## Ports
 
 One per project, since they run at the same time: 43127, 43128, 43129, and so
-on. Passing `-p` on the command line rather than editing `package.json` keeps
-the clone unmodified, so `git pull` never has a change of yours to reconcile.
+on. It goes in `hartask.config.json`, which is the clone's own configuration
+file and is not tracked, so `git pull` never has a change of yours to
+reconcile. `HARTASK_PORT` in `.env.local` does the same for a one-off.
 
 ## What the prompt leaves out, on purpose
 
