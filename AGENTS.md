@@ -87,7 +87,8 @@ archiving rules. Behaviour asserted in a commit message belongs in a test.
   `'use client'` components, and each says in the file why the server could not
   answer: `components/nav.tsx`, because a layout does not receive the pathname
   and the tab bar has to know which tab is active, and `components/mermaid.tsx`,
-  because Mermaid draws in the browser. Reach for a client component only when
+  because Mermaid draws in the browser. Both are used from more than one page
+  now, which is the test of whether a client component earned its place. Reach for a client component only when
   the server genuinely cannot answer, and say why in the file.
 - **Any page or route that reads the database sets `export const dynamic =
   'force-dynamic'`**, otherwise Next tries to prerender it at build time.

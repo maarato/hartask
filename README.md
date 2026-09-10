@@ -1037,7 +1037,13 @@ Working end to end:
   in its own description — a handoff, a note and Project Context are each the
   right home for something a document is not — because a tool description is the
   one thing an agent reads without fail;
-- shared contexts, surfaced rather than stored and forgotten: the index rides in
+- shared contexts at `/contexts`, a tab of their own rather than a third block
+  on Summary, which is a briefing and not a shelf: collapsed cards showing what
+  decides whether to open one, the body read as written with any ```mermaid
+  block drawn, and the update date next to the title because a document that
+  claims to be current and was last true months ago is worse than one that
+  admits its age;
+- and surfaced rather than stored and forgotten: the index rides in
   every `GET /api/context` briefing — slug, title, purpose, never bodies — and
   `GET /api/contexts/<slug>` or `hartask://contexts/<slug>` opens one. An agent
   that had to already know a document existed in order to find it would never

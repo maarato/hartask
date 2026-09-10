@@ -43,6 +43,9 @@ Available today over HTTP on this same server:
   GET   /api/contexts/{slug}       one shared context, body included
   GET   /api/harness               instructions, skills, agents, MCP servers, hooks
   POST  /api/harness               rescan the project's harness
+  GET   /api/sync                  whether a remote is configured, this project's uuid, the
+                                   known origins and the last completed sync
+  POST  /api/sync                  { action: "sync" } merges with that remote
   GET   /api/health
 
 Shared contexts are durable documents agents write for each other: how a part
@@ -62,6 +65,14 @@ needs several tries.
 MCP is served at /mcp and /api/mcp — the same server on both. Prefer it over
 raw HTTP when your host supports it: the tools are the same operations, and
 resources under hartask:// give you the state without a call.
+
+Sync is never automatic. Everything you write lands in the local database and
+stays there until a sync runs, so a board that is meant to reach a store or
+another machine needs hartask_sync — or POST /api/sync — after the handoff that
+ends your session. It sends the whole board off this machine, which is why the
+first one on an instance asks for the user's agreement before it runs. If no
+remote is configured the tool says so, and that is not a problem to fix on your
+own: plenty of projects are local only.
 
 hartask_get_harness reports what the last scan found; pass rescan to read the
 disk again. It answers what is configured, not what it means.

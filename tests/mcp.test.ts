@@ -1,7 +1,13 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { existsSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 import { createPrompt } from '@/lib/hartask/repositories/prompts';
+import { getDb } from '@/lib/db/client';
+import { resetConfigCache, syncSettings } from '@/lib/hartask/config';
 import { createTask } from '@/lib/hartask/repositories/tasks';
+import { listOrigins } from '@/lib/hartask/sync/identity';
 import { createHartaskMcpServer, hartaskToolNames } from '@/lib/mcp/server';
 import { SingleExchangeTransport } from '@/lib/mcp/transport';
 import { resetDb } from './helpers';
@@ -94,6 +100,7 @@ describe('tools', () => {
         'hartask_create_task',
         'hartask_claim_next_prompt',
         'hartask_update_handoff',
+        'hartask_sync',
         'hartask_get_harness'
       ])
     );
@@ -165,6 +172,87 @@ describe('tools', () => {
 
     expect(result.isError).toBe(true);
     expect(result.text).toMatch(/at least one of/i);
+  });
+});
+
+describe('sync', () => {
+  /**
+   * The board only reaches a store when someone runs a sync, so the tool is
+   * the agent's half of that. What is pinned here is mostly what it refuses:
+   * sending a whole board off the machine is not a call it gets to make alone.
+   */
+
+  let store: string;
+
+  beforeEach(() => {
+    store = join(mkdtempSync(join(tmpdir(), 'hartask-mcp-sync-')), 'store.sqlite');
+    // resetDb leaves sync_origins alone — it is this database's identity, not
+    // its content — so a sync in one test would otherwise count as pairing in
+    // the next and the confirmation guard would look already satisfied.
+    getDb().prepare(`DELETE FROM sync_origins WHERE is_local = 0`).run();
+    delete process.env.HARTASK_SYNC_URL;
+    delete process.env.HARTASK_SYNC_TOKEN;
+    resetConfigCache();
+  });
+
+  afterEach(() => {
+    delete process.env.HARTASK_SYNC_URL;
+    delete process.env.HARTASK_SYNC_TOKEN;
+    resetConfigCache();
+  });
+
+  function pointAtStore(): void {
+    process.env.HARTASK_SYNC_URL = `file:${store}`;
+    resetConfigCache();
+    // The tool reads it, so a misconfigured test would be indistinguishable
+    // from the guard it is trying to exercise.
+    expect(syncSettings().url).toBe(`file:${store}`);
+  }
+
+  it('says there is nowhere to send the board rather than failing obscurely', async () => {
+    const result = await callTool('hartask_sync');
+
+    expect(result.isError).toBe(true);
+    expect(result.text).toMatch(/no sync is configured/i);
+  });
+
+  it('will not run the first sync without the user behind it', async () => {
+    createTask({ title: 'local work' });
+    pointAtStore();
+
+    const result = await callTool('hartask_sync');
+
+    expect(result.isError).toBe(true);
+    expect(result.text).toMatch(/confirm_first_sync/);
+    // Refusing has to mean nothing was uploaded, not that the upload happened
+    // and the message was written afterwards.
+    expect(existsSync(store)).toBe(false);
+    expect(listOrigins().filter((origin) => !origin.is_local)).toHaveLength(0);
+  });
+
+  it('syncs once the user has agreed, and stops asking afterwards', async () => {
+    createTask({ title: 'local work' });
+    pointAtStore();
+
+    const first = await callTool('hartask_sync', { confirm_first_sync: true });
+    expect(first.isError).toBe(false);
+    expect(first.data.last_sync).toMatchObject({ kind: 'completed' });
+
+    // The pairing is what the guard reads, so the second call needs no flag.
+    const second = await callTool('hartask_sync');
+    expect(second.isError).toBe(false);
+  });
+
+  it('reports a broken remote as a failure without pretending it synced', async () => {
+    createTask({ title: 'local work' });
+    process.env.HARTASK_SYNC_URL = 'https://hartask.invalid';
+    process.env.HARTASK_SYNC_TOKEN = 'shared-secret';
+    resetConfigCache();
+
+    const result = await callTool('hartask_sync', { confirm_first_sync: true });
+
+    expect(result.isError).toBe(true);
+    expect(result.text).toMatch(/sync failed/i);
   });
 });
 

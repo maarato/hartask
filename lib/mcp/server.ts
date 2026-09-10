@@ -1,5 +1,6 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { syncSettings } from '@/lib/hartask/config';
 import { HARTASK_AGENT_CONTRACT } from '@/lib/hartask/contract';
 import { onboarding } from '@/lib/hartask/onboarding';
 import {
@@ -30,6 +31,9 @@ import {
   setTaskStatus,
   updateTask
 } from '@/lib/hartask/repositories/tasks';
+import { listOrigins } from '@/lib/hartask/sync/identity';
+import { isRemoteStoreUrl, SyncRefusedError } from '@/lib/hartask/sync/remote';
+import { lastSync, runSync } from '@/lib/hartask/sync/run';
 import { TASK_STATUSES } from '@/lib/hartask/types';
 
 /**
@@ -508,6 +512,67 @@ export function createHartaskMcpServer(): McpServer {
   );
 
   // -------------------------------------------------------------------------
+  // Sync
+  // -------------------------------------------------------------------------
+
+  server.registerTool(
+    'hartask_sync',
+    {
+      description:
+        'Merge this board with the configured remote store or peer. Nothing written through ' +
+        'these tools leaves this machine until a sync runs, and a sync sends the whole board — ' +
+        'so run it after a handoff, and ask the user before the first one.',
+      inputSchema: {
+        confirm_first_sync: z
+          .boolean()
+          .optional()
+          .describe('Only needed when this instance has never synced. Ask the user first')
+      }
+    },
+    async ({ confirm_first_sync }) => {
+      const { url, token } = syncSettings();
+      if (!url || (!isRemoteStoreUrl(url) && !token)) {
+        return failure(
+          'No sync is configured for this project, so there is nowhere to send the board. ' +
+            'A person sets HARTASK_SYNC_URL — and a token, unless the URL is a libsql: or ' +
+            'file: store — in the environment or on /settings.'
+        );
+      }
+
+      // Whether the two have ever met is durable state: a remote origin row
+      // exists only once a changeset has been applied. Reading it out of a
+      // SYNC_COMPLETED event instead would ask for confirmation a second time
+      // on a board busy enough to push that event out of the scan.
+      const paired = listOrigins().some((origin) => !origin.is_local);
+      if (!paired && confirm_first_sync !== true) {
+        return failure(
+          `This instance has never synced, and the first one uploads the whole board to ${url}. ` +
+            `That is the user's call rather than yours: ask, and call again with ` +
+            'confirm_first_sync true once they have agreed.'
+        );
+      }
+
+      try {
+        return json({ outcome: await runSync(), last_sync: lastSync() });
+      } catch (error) {
+        // adopt_project is deliberately not a parameter here. It merges two
+        // boards in a way no later sync can undo, and an agent retrying a
+        // refusal with the override set is exactly what the guard is for.
+        if (error instanceof SyncRefusedError) {
+          return failure(
+            `${(error as Error).message}
+
+The configuration is wrong rather than the network, ` +
+              'and that last override is not available through MCP — a person runs it ' +
+              'deliberately with POST /api/sync {"action":"sync","adopt_project":true}.'
+          );
+        }
+        return failure(`Sync failed: ${(error as Error).message}`);
+      }
+    }
+  );
+
+  // -------------------------------------------------------------------------
   // Resources
   // -------------------------------------------------------------------------
 
@@ -612,6 +677,7 @@ export function hartaskToolNames(): string[] {
     'hartask_complete_prompt',
     'hartask_fail_prompt',
     'hartask_update_handoff',
+    'hartask_sync',
     'hartask_get_context_doc',
     'hartask_write_context_doc',
     'hartask_get_harness'
