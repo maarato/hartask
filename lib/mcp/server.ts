@@ -15,7 +15,7 @@ import {
   failPrompt,
   listPrompts
 } from '@/lib/hartask/repositories/prompts';
-import { contextIndex, getContext } from '@/lib/hartask/repositories/contexts';
+import { contextIndex, getContext, writeContext } from '@/lib/hartask/repositories/contexts';
 import { ensureProject } from '@/lib/hartask/repositories/projects';
 import {
   addNote,
@@ -362,6 +362,84 @@ export function createHartaskMcpServer(): McpServer {
   // -------------------------------------------------------------------------
 
   server.registerTool(
+    'hartask_get_context_doc',
+    {
+      description:
+        'Read one shared context in full. The index of what exists rides in every ' +
+        'hartask_get_context briefing, so you never have to guess a slug.',
+      inputSchema: { slug: z.string() }
+    },
+    async ({ slug }) => {
+      const document = getContext(slug);
+      if (!document) {
+        return failure(
+          `No shared context named ${slug}. The briefing from hartask_get_context lists them.`
+        );
+      }
+      return json(document);
+    }
+  );
+
+  server.registerTool(
+    'hartask_write_context_doc',
+    {
+      // The boundary lives here and not only in a skill, because a tool
+      // description is the one thing an agent reads without fail. An agent that
+      // files a checkpoint as a document leaves something that claims to be
+      // current and is a snapshot.
+      description:
+        'Write a shared context: a durable document about how a part of this project ' +
+        'works and why, so the next agent does not derive it again. Writing an existing ' +
+        'slug corrects that document in place; fields you leave out keep what it already ' +
+        'says. Do not use this for: where you left off (that is a handoff, ' +
+        'hartask_update_handoff), what you found doing one task (a note on that task, ' +
+        'hartask_add_note), or what the project IS (Project Context, which stays short ' +
+        'enough to read in a minute). If it would be stale in a week, it is one of those ' +
+        'instead.',
+      inputSchema: {
+        slug: z.string().describe('Short name, e.g. "sync-merge". Reused if it exists'),
+        title: z.string().optional().describe('Required the first time'),
+        purpose: z
+          .string()
+          .nullable()
+          .optional()
+          .describe('One line, shown in every briefing so a reader can tell whether to open it'),
+        body: z.string().nullable().optional().describe('Markdown'),
+        category: z
+          .string()
+          .nullable()
+          .optional()
+          .describe('Same area vocabulary the tasks use, e.g. "sync"'),
+        valid_as_of: z
+          .string()
+          .nullable()
+          .optional()
+          .describe('Public id of the task this was last true as of, e.g. "TASK-067"'),
+        agent_id: z.string().optional()
+      }
+    },
+    async ({ slug, title, purpose, body, category, valid_as_of, agent_id }) => {
+      try {
+        return json(
+          writeContext({
+            slug,
+            title,
+            purpose,
+            body,
+            category,
+            validAsOf: valid_as_of,
+            agentId: agent_id ?? 'mcp'
+          })
+        );
+      } catch (error) {
+        // A new document with no title, or a slug that is not usable: both are
+        // the caller's to fix, so say which rather than failing opaquely.
+        return failure((error as Error).message);
+      }
+    }
+  );
+
+  server.registerTool(
     'hartask_get_harness',
     {
       description:
@@ -534,6 +612,8 @@ export function hartaskToolNames(): string[] {
     'hartask_complete_prompt',
     'hartask_fail_prompt',
     'hartask_update_handoff',
+    'hartask_get_context_doc',
+    'hartask_write_context_doc',
     'hartask_get_harness'
   ];
 }

@@ -534,6 +534,8 @@ hartask_complete_prompt
 hartask_fail_prompt
 hartask_record_event
 hartask_update_handoff
+hartask_get_context_doc
+hartask_write_context_doc
 hartask_get_harness
 ```
 
@@ -1029,9 +1031,12 @@ Working end to end:
   across the project;
 - `GET/POST /api/tasks` and `GET/PATCH /api/tasks/[id]` (accepts `TASK-001` or a
   numeric id) with request validation;
-- MCP over Streamable HTTP at `/mcp`: 15 semantic tools over the repositories
+- MCP over Streamable HTTP at `/mcp`: 17 semantic tools over the repositories
   and nine `hartask://` resources, one of them a template that lists the shared
-  contexts it can serve;
+  contexts it can serve. The write tool for shared contexts carries the boundary
+  in its own description — a handoff, a note and Project Context are each the
+  right home for something a document is not — because a tool description is the
+  one thing an agent reads without fail;
 - shared contexts, surfaced rather than stored and forgotten: the index rides in
   every `GET /api/context` briefing — slug, title, purpose, never bodies — and
   `GET /api/contexts/<slug>` or `hartask://contexts/<slug>` opens one. An agent

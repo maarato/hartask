@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 import { createPrompt } from '@/lib/hartask/repositories/prompts';
 import { createTask } from '@/lib/hartask/repositories/tasks';
-import { createHartaskMcpServer } from '@/lib/mcp/server';
+import { createHartaskMcpServer, hartaskToolNames } from '@/lib/mcp/server';
 import { SingleExchangeTransport } from '@/lib/mcp/transport';
 import { resetDb } from './helpers';
 
@@ -186,5 +186,72 @@ describe('resources', () => {
 
     expect(JSON.parse(contents[0].text).public_id).toBe(task.public_id);
     expect(contents[0].uri).toBe('hartask://tasks/current');
+  });
+});
+
+
+describe('shared context tools', () => {
+  it('writes a document and reads it back in full', async () => {
+    await callTool('hartask_write_context_doc', {
+      slug: 'sync-merge',
+      title: 'Como decide el merge',
+      purpose: 'Por que Lamport y no reloj de pared',
+      body: '# Merge'
+    });
+
+    const { data } = await callTool('hartask_get_context_doc', { slug: 'sync-merge' });
+    expect(data.title).toBe('Como decide el merge');
+    expect(data.body).toBe('# Merge');
+  });
+
+  it('corrects a document in place instead of stacking versions', async () => {
+    await callTool('hartask_write_context_doc', { slug: 'sync-merge', title: 'Merge', body: 'uno' });
+    await callTool('hartask_write_context_doc', { slug: 'sync-merge', body: 'dos' });
+
+    const { data } = await callTool('hartask_get_context_doc', { slug: 'sync-merge' });
+    expect(data).toMatchObject({
+      title: 'Merge',
+      body: 'dos'
+    });
+  });
+
+  it('says which document is missing rather than answering with nothing', async () => {
+    const { isError, data } = await callTool('hartask_get_context_doc', { slug: 'no-existe' });
+
+    expect(isError).toBe(true);
+    expect(String(data)).toMatch(/no-existe/);
+  });
+
+  // A new document with no title, or a slug that is not usable, are the
+  // caller's to fix — so the tool has to say which, not fail opaquely.
+  it('reports a bad write as an error the caller can act on', async () => {
+    const missingTitle = await callTool('hartask_write_context_doc', { slug: 'sin-titulo' });
+    expect(missingTitle.isError).toBe(true);
+    expect(String(missingTitle.data)).toMatch(/title/i);
+
+    const badSlug = await callTool('hartask_write_context_doc', { slug: '!!!', title: 'x' });
+    expect(badSlug.isError).toBe(true);
+    expect(String(badSlug.data)).toMatch(/slug/i);
+  });
+
+  // The description is the only thing an agent reads without fail, so the
+  // boundary against handoffs, notes and Project Context lives in it.
+  it('carries the boundary in the write tool description', async () => {
+    const reply = await rpc('tools/list');
+    const tools = (reply.result as { tools: { name: string; description: string }[] }).tools;
+    const write = tools.find((tool) => tool.name === 'hartask_write_context_doc')!;
+
+    expect(write.description).toMatch(/handoff/i);
+    expect(write.description).toMatch(/note/i);
+    expect(write.description).toMatch(/Project Context/i);
+  });
+
+  it('offers both tools, and the discovery response agrees', async () => {
+    const reply = await rpc('tools/list');
+    const names = (reply.result as { tools: { name: string }[] }).tools.map((tool) => tool.name);
+
+    expect(names).toContain('hartask_get_context_doc');
+    expect(names).toContain('hartask_write_context_doc');
+    expect(hartaskToolNames()).toEqual(expect.arrayContaining(names));
   });
 });
