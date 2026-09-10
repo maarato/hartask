@@ -94,6 +94,7 @@ const REMOTE_SCHEMA = [
      uuid TEXT PRIMARY KEY,
      project_uuid TEXT NOT NULL,
      origin TEXT, lamport INTEGER NOT NULL DEFAULT 0,
+     kind TEXT NOT NULL DEFAULT 'doc',
      slug TEXT NOT NULL, title TEXT NOT NULL, purpose TEXT, body TEXT,
      category TEXT, valid_as_of TEXT, created_at TEXT, updated_at TEXT
    )`,
@@ -115,7 +116,8 @@ const REMOTE_SCHEMA = [
  * Same shape and same rule as ADDED_COLUMNS locally: additive only.
  */
 const REMOTE_ADDED_COLUMNS: { table: string; column: string; definition: string }[] = [
-  { table: 'tasks', column: 'category', definition: 'TEXT' }
+  { table: 'tasks', column: 'category', definition: 'TEXT' },
+  { table: 'shared_contexts', column: 'kind', definition: "TEXT NOT NULL DEFAULT 'doc'" }
 ];
 
 const APPEND_COLUMNS = {

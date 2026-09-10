@@ -23,6 +23,7 @@ const globalForDb = globalThis as unknown as { hartaskDb?: DbHandle };
 const ADDED_COLUMNS: { table: string; column: string; definition: string }[] = [
   { table: 'tasks', column: 'archived_at', definition: 'TEXT' },
   { table: 'tasks', column: 'category', definition: 'TEXT' },
+  { table: 'shared_contexts', column: 'kind', definition: "TEXT NOT NULL DEFAULT 'doc'" },
   { table: 'projects', column: 'uuid', definition: 'TEXT' },
   { table: 'tasks', column: 'uuid', definition: 'TEXT' },
   { table: 'tasks', column: 'origin', definition: 'TEXT' },

@@ -167,6 +167,11 @@ CREATE TABLE IF NOT EXISTS shared_contexts (
   -- without paying for the body.
   purpose TEXT,
   body TEXT,
+  -- What this row is for. A document explains a part of the project; an agent
+  -- describes a role someone works in. They share every column, which is the
+  -- reason they share a table: if telling them apart ever needs more than this,
+  -- they were two things after all.
+  kind TEXT NOT NULL DEFAULT 'doc' CHECK(kind IN ('doc','agent')),
   -- Same vocabulary as tasks, normalised through the same function.
   category TEXT,
   -- The task this was last known to be true as of, as a public id. A plain

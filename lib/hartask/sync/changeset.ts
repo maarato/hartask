@@ -157,6 +157,7 @@ const MUTABLE: MutableSpec[] = [
     // plain text on purpose, so a reference that cannot be resolved still opens.
     table: 'shared_contexts',
     columns: [
+      'kind',
       'slug',
       'title',
       'purpose',

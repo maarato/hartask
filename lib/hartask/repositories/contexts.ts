@@ -2,7 +2,11 @@ import { getDb } from '@/lib/db/client';
 import { localOrigin, nextLamport, uuidForName } from '@/lib/hartask/sync/identity';
 import { ensureProject } from '@/lib/hartask/repositories/projects';
 import { normalizeCategory, recordEvent } from '@/lib/hartask/repositories/tasks';
-import type { SharedContext, SharedContextSummary } from '@/lib/hartask/types';
+import type {
+  SharedContext,
+  SharedContextKind,
+  SharedContextSummary
+} from '@/lib/hartask/types';
 
 /**
  * Shared contexts: documents an agent writes for the next agent, and for the
@@ -14,7 +18,7 @@ import type { SharedContext, SharedContextSummary } from '@/lib/hartask/types';
  * the previous text is in the event trail's summary, not in a second row.
  */
 
-const COLUMNS_WITHOUT_BODY = `id, uuid, origin, lamport, slug, title, purpose,
+const COLUMNS_WITHOUT_BODY = `id, uuid, origin, lamport, kind, slug, title, purpose,
   category, valid_as_of, created_at, updated_at`;
 
 /**
@@ -38,14 +42,19 @@ export function normalizeSlug(value: string): string {
   return slug;
 }
 
-/** Every document, without its body, in the order a reader would scan them. */
-export function listContexts(): SharedContextSummary[] {
+/**
+ * Rows of one kind, without their bodies, in the order a reader would scan
+ * them. The kind is always narrowed: a listing that mixed documents and roles
+ * would be a listing of neither.
+ */
+export function listContexts(kind: SharedContextKind = 'doc'): SharedContextSummary[] {
   return getDb()
     .prepare(
       `SELECT ${COLUMNS_WITHOUT_BODY} FROM shared_contexts
+       WHERE kind = ?
        ORDER BY category IS NULL, category COLLATE NOCASE ASC, title COLLATE NOCASE ASC`
     )
-    .all() as SharedContextSummary[];
+    .all(kind) as SharedContextSummary[];
 }
 
 /**
@@ -58,7 +67,7 @@ export function listContexts(): SharedContextSummary[] {
  * for. `valid_as_of` is in, because a document that claims to be current is
  * worth less than one that says when it last was.
  */
-export function contextIndex(): {
+export function contextIndex(kind: SharedContextKind = 'doc'): {
   slug: string;
   title: string;
   purpose: string | null;
@@ -66,7 +75,7 @@ export function contextIndex(): {
   valid_as_of: string | null;
   updated_at: string;
 }[] {
-  return listContexts().map((doc) => ({
+  return listContexts(kind).map((doc) => ({
     slug: doc.slug,
     title: doc.title,
     purpose: doc.purpose,
@@ -76,16 +85,24 @@ export function contextIndex(): {
   }));
 }
 
-export function getContext(slug: string): SharedContext | null {
-  return (
-    (getDb()
-      .prepare(`SELECT * FROM shared_contexts WHERE slug = ?`)
-      .get(normalizeSlug(slug)) as SharedContext | undefined) ?? null
-  );
+/**
+ * One row by name. The kind is checked rather than ignored, so asking the
+ * agents view for a document's slug answers nothing instead of answering with
+ * something that does not belong there.
+ */
+export function getContext(slug: string, kind?: SharedContextKind): SharedContext | null {
+  const row = getDb()
+    .prepare(`SELECT * FROM shared_contexts WHERE slug = ?`)
+    .get(normalizeSlug(slug)) as SharedContext | undefined;
+
+  if (!row) return null;
+  return kind && row.kind !== kind ? null : row;
 }
 
 export type WriteContextInput = {
   slug: string;
+  /** Only honoured when creating: a row does not change what it is. */
+  kind?: SharedContextKind;
   /** Required the first time; leaving it out later keeps the current one. */
   title?: string;
   purpose?: string | null;
@@ -137,12 +154,13 @@ export function writeContext(input: WriteContextInput): SharedContext {
       // random uuid each would arrive at the unique slug as two rows.
       db.prepare(
         `INSERT INTO shared_contexts
-           (uuid, origin, lamport, slug, title, purpose, body, category, valid_as_of)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           (uuid, origin, lamport, kind, slug, title, purpose, body, category, valid_as_of)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).run(
         uuidForName(ensureProject().uuid, slug),
         localOrigin().id,
         nextLamport(),
+        input.kind ?? 'doc',
         slug,
         input.title.trim(),
         input.purpose ?? null,
@@ -208,9 +226,9 @@ export function removeContext(slug: string, agentId?: string | null): boolean {
   return run();
 }
 
-export function countContexts(): number {
-  const row = getDb().prepare(`SELECT COUNT(*) AS total FROM shared_contexts`).get() as {
-    total: number;
-  };
+export function countContexts(kind: SharedContextKind = 'doc'): number {
+  const row = getDb()
+    .prepare(`SELECT COUNT(*) AS total FROM shared_contexts WHERE kind = ?`)
+    .get(kind) as { total: number };
   return row.total;
 }

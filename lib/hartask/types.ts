@@ -66,8 +66,15 @@ export type TaskNode = Task & { children: TaskNode[] };
  * the whole project. Addressed by slug, because the same document on two
  * machines has two row ids and one name.
  */
+/**
+ * A document explains a part of the project. An agent describes a role to work
+ * in, and is written to be handed to a coding agent at the start of a session.
+ */
+export type SharedContextKind = 'doc' | 'agent';
+
 export type SharedContext = SyncFields & {
   id: number;
+  kind: SharedContextKind;
   slug: string;
   title: string;
   purpose: string | null;

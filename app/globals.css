@@ -202,3 +202,7 @@ summary { cursor:pointer; }
    starting at a different place — the checkboxes never lined up. */
 .modal-actions { justify-content:flex-end; }
 .modal .checkbox { align-items:center; }
+
+/* The composed role brief: long, monospaced and meant to be selected whole,
+   so it gets room rather than the tight box a diagram source needs. */
+.brief { max-height:480px; overflow:auto; white-space:pre-wrap; line-height:1.5; }

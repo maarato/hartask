@@ -1038,6 +1038,13 @@ Working end to end:
   in its own description — a handoff, a note and Project Context are each the
   right home for something a document is not — because a tool description is the
   one thing an agent reads without fail;
+- agent roles at `/agents`: what an architect or a backend agent should care
+  about on this project, written once and served with the way to reach *this*
+  Hartask already attached. That half is composed at read time from the running
+  instance — its port, and what the last harness scan actually found — because a
+  file that says `43127` is wrong the moment a second project takes a port of its
+  own. Roles and documents are the same rows with a different `kind`, which is
+  the whole cost of telling them apart;
 - shared contexts at `/contexts`, a tab of their own rather than a third block
   on Summary, which is a briefing and not a shelf: collapsed cards showing what
   decides whether to open one, the body read as written with any ```mermaid
