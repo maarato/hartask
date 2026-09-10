@@ -8,3 +8,10 @@ data/*.sqlite-*
 .DS_Store
 *.tsbuildinfo
 hartask.config.json
+# A role exported from the Agentes tab lands here, and it is generated from a
+# row that already syncs — committing it would version a copy of something the
+# database owns. The rest of these describe how one machine's AI environment is
+# set up, which is what Harness observes and deliberately does not sync either.
+# Un-ignore a path here if you ever hand-write something the team should share.
+.claude/
+.cursor/
