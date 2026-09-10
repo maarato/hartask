@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { contextIndex } from '@/lib/hartask/repositories/contexts';
+import { promptQueueBriefing } from '@/lib/hartask/repositories/prompts';
 import { onboarding } from '@/lib/hartask/onboarding';
 import { getLatestHandoff } from '@/lib/hartask/repositories/handoff';
 import { ensureProject } from '@/lib/hartask/repositories/projects';
@@ -25,6 +26,7 @@ export async function GET() {
   // collection like this quietly becomes write-only.
   const contexts = contextIndex();
 
+
   return NextResponse.json({
     project: { name: project.name, root_path: project.root_path, summary: project.summary },
     current_task: getCurrentTask(),
@@ -49,8 +51,6 @@ export async function GET() {
           })
     },
     ...(firstRun ? { onboarding: firstRun } : {}),
-    // Not implemented yet: the prompt repository is the next phase in
-    // docs/NEXT-STEPS.md.
-    prompts: { queue: null, note: 'TODO: prompt stack repository' }
+    prompts: promptQueueBriefing()
   });
 }

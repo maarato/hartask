@@ -8,6 +8,7 @@ import {
   getPrompt,
   listPrompts,
   listRuns,
+  promptQueueBriefing,
   updatePrompt
 } from '@/lib/hartask/repositories/prompts';
 import { createTask, listEvents } from '@/lib/hartask/repositories/tasks';
@@ -175,5 +176,73 @@ describe('countPromptsByStatus', () => {
     claimNextPrompt('agent-one');
 
     expect(countPromptsByStatus()).toEqual({ READY: 1, DRAFT: 1, CLAIMED: 1 });
+  });
+});
+
+
+/**
+ * What a cold-start briefing says about the queue.
+ *
+ * This block used to be a hardcoded `{ queue: null, note: 'TODO: prompt stack
+ * repository' }` long after the repository existed, so an agent reading the
+ * briefing concluded there was no queue to work. The point of these is that the
+ * briefing answers from the queue rather than from a sentence someone wrote
+ * once.
+ */
+describe('promptQueueBriefing', () => {
+  it('reports an empty queue as empty, not as absent', () => {
+    const briefing = promptQueueBriefing();
+
+    expect(briefing.ready).toBe(0);
+    expect(briefing.next).toBeNull();
+    expect(briefing.counts).toEqual({});
+  });
+
+  it('counts what is waiting and names the one a claim would take', () => {
+    const task = createTask({ title: 'Add authentication' });
+    createPrompt({ prompt: 'segundo', title: 'Segundo', status: 'READY', priority: 0 });
+    createPrompt({
+      prompt: 'primero',
+      title: 'Primero',
+      status: 'READY',
+      priority: 10,
+      taskId: task.id
+    });
+
+    const briefing = promptQueueBriefing();
+
+    expect(briefing.ready).toBe(2);
+    expect(briefing.next?.title).toBe('Primero');
+    expect(briefing.next?.task).toContain(task.public_id);
+  });
+
+  // Listing and claiming share one queue order, so what the briefing names has
+  // to be what a claim actually hands over.
+  it('names the same prompt the claim gives out', () => {
+    createPrompt({ prompt: 'segundo', title: 'Segundo', status: 'READY', priority: 0 });
+    createPrompt({ prompt: 'primero', title: 'Primero', status: 'READY', priority: 10 });
+
+    const named = promptQueueBriefing().next!;
+    const claimed = claimNextPrompt('agent-one')!;
+
+    expect(claimed.prompt.id).toBe(named.id);
+  });
+
+  // A briefing is read on every cold start, so it cannot grow with the queue.
+  it('never carries the instructions themselves', () => {
+    createPrompt({ prompt: 'un texto muy largo que nadie necesita hasta reclamarlo', status: 'READY' });
+
+    expect(JSON.stringify(promptQueueBriefing())).not.toContain('un texto muy largo');
+  });
+
+  it('does not offer a draft, because nothing can claim it', () => {
+    createPrompt({ prompt: 'todavia no', title: 'Borrador' });
+
+    expect(promptQueueBriefing().ready).toBe(0);
+    expect(promptQueueBriefing().counts.DRAFT).toBe(1);
+  });
+
+  it('says how to take it, because reading it and running it is the mistake', () => {
+    expect(promptQueueBriefing().claim).toMatch(/claim/i);
   });
 });

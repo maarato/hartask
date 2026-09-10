@@ -288,6 +288,34 @@ export function failPrompt(
 }
 
 /** Resolves a prompt reference and the task it belongs to, for the UI. */
+/**
+ * What a cold-start briefing says about the queue.
+ *
+ * Counts and the next one's name, never the instructions themselves: a
+ * briefing that carried every queued prompt would grow with the queue, and the
+ * text is only needed by whoever claims it.
+ *
+ * `next` is the prompt a claim would actually take, because listing and
+ * claiming share one queue order — naming it is not a guess about what comes
+ * up next.
+ */
+export function promptQueueBriefing(): {
+  counts: Record<string, number>;
+  ready: number;
+  next: { id: number; title: string | null; task: string | null } | null;
+  claim: string;
+} {
+  const queue = listPrompts({ status: ['READY'] });
+  const next = queue[0];
+
+  return {
+    counts: countPromptsByStatus(),
+    ready: queue.length,
+    next: next ? { id: next.id, title: next.title, task: promptTaskLabel(next) } : null,
+    claim: 'POST /api/prompts/claim with { agent_id }. Claim it, never read it and run it.'
+  };
+}
+
 export function promptTaskLabel(prompt: Prompt): string | null {
   if (prompt.task_id === null) return null;
   const task = getTask(prompt.task_id);

@@ -59,7 +59,14 @@ const failure = (message: string) => ({
   isError: true
 });
 
-/** The cold-start briefing, in the shape both the tool and the UI answer from. */
+/**
+ * The cold-start briefing an MCP client gets.
+ *
+ * Not the same shape as GET /api/context, which answers the same question in
+ * more detail for a caller that asked for it directly. Two shapes is a choice;
+ * two shapes that disagree is a bug, and one did — this one reported the prompt
+ * queue while the route still said the queue did not exist.
+ */
 function briefing() {
   const project = ensureProject();
   const handoff = getLatestHandoff();

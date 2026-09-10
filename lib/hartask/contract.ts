@@ -25,7 +25,9 @@ export const HARTASK_AVAILABLE_INTERFACE = `
 Available today over HTTP on this same server:
 
   GET   /api/context               cold-start briefing: project context, current
-                                   task, status counts, recent events, current handoff
+                                   task, status counts, recent events, current handoff,
+                                   the queue waiting to be claimed, and the index of
+                                   the documents this project keeps
   GET   /api/tasks                 list and hierarchy
   POST  /api/tasks                 { title, status, next_action, parent_id, agent_id }
   GET   /api/tasks/{id}            one task with its notes and events (TASK-001 or numeric id)
