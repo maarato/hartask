@@ -904,7 +904,8 @@ hartask/
 │   ├── FIRST-RUN.md
 │   ├── INSTALL-PROMPT.md
 │   ├── NEXT-STEPS.md
-│   └── SYNC.md
+│   ├── SYNC.md
+│   └── WHERE-IT-GOES.md
 ├── lib/
 │   ├── mcp/
 │   │   ├── handler.ts

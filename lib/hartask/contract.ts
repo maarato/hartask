@@ -51,8 +51,13 @@ Available today over HTTP on this same server:
 Shared contexts are durable documents agents write for each other: how a part
 works and why, kept so it is not re-derived every session. The index rides in
 GET /api/context on every briefing, so you never have to guess whether one
-exists. What the project IS belongs in Project Context, where you left off in a
-handoff, and what you found doing one task in a note on that task.
+exists — read it before writing, because correcting one in place is almost
+always right and two documents on the same subject mean neither can be trusted.
+
+What the project IS belongs in Project Context, where you left off in a handoff,
+and what you found doing one task in a note on that task. Would it be stale in a
+week? Then it is a handoff or a note, not a document. Anything that must travel
+with a clone of the repo belongs in the repo, not here.
 
 Status transitions record events automatically; do not log them separately.
 

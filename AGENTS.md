@@ -26,6 +26,34 @@ finished; status changes record events on their own. Write a handoff checkpoint
 after meaningful progress, an important decision, a discovered blocker or a
 completed task.
 
+### Where each thing goes
+
+Something filed in the wrong place is worse than something not written down: a
+checkpoint saved as a document claims to be current forever, and a durable
+decision saved as a checkpoint is buried under the next one within a day.
+
+First, git or a row: **if it has to travel with a clone of the repo it goes in
+git** — `README.md`, this file, `docs/` — **and if it describes the ongoing work
+of this project it goes in a row.** A convention about how the code is written
+is never a shared context; a fresh clone takes this file with it and takes none
+of the rows.
+
+Then, among the four:
+
+| | Holds | Shape |
+| --- | --- | --- |
+| Project Context | What the project **is** | One document, budgeted at a minute to read |
+| Shared context | How a **part** works and why | Named documents, corrected in place |
+| Handoff | Where you **left off** | A checkpoint, point in time |
+| Task note | What you found doing **this task** | Attached to that task |
+
+When it is not obvious: would it be stale in a week? Then it is a handoff or a
+note. Before creating a document, read the index that every `GET /api/context`
+already carries — correcting one in place is almost always right, and a second
+document on the same subject means neither can be trusted.
+
+`docs/WHERE-IT-GOES.md` has the reasoning and the rest of the tests.
+
 Never read or write `data/hartask.sqlite` directly from application code or as
 an agent — that is the rule Hartask asks of its own users. Development scripts
 under `scripts/` are Hartask, so they may open the database.

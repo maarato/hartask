@@ -84,6 +84,39 @@ Each checkpoint is a new row; the most recent one is the current handoff.
 Write one after meaningful progress, an important decision, a discovered
 blocker or a completed task — not after every file write.
 
+### What is worth writing down, and where
+
+```
+GET  /api/contexts               the documents this project keeps: index only
+GET  /api/contexts/<slug>        one of them, in full
+```
+
+The index also rides in every `GET /api/context`, so you never have to guess
+whether one exists. Read it before writing: correcting a document in place is
+almost always right, and two documents on the same subject mean neither can be
+trusted.
+
+Filing something in the wrong place is worse than not writing it: a checkpoint
+saved as a document claims to be current forever, and a durable decision saved
+as a checkpoint is buried under the next one within a day.
+
+| | Holds | Shape |
+| --- | --- | --- |
+| Project Context | What the project **is** | One document, a minute to read |
+| Shared context | How a **part** works and why | Named documents, corrected in place |
+| Handoff | Where you **left off** | A checkpoint, point in time |
+| Task note | What you found doing **this task** | Attached to that task |
+
+Would it be stale in a week? Then it is a handoff or a note, not a document.
+And anything that must travel with a clone of this repo — a convention, a
+README — belongs in the repo, not in Hartask.
+
+To write one, use `hartask_write_context_doc` over MCP. Over plain HTTP there is
+no write path for documents yet; say so rather than filing the text somewhere
+that does not fit it.
+
+`./hartask/docs/WHERE-IT-GOES.md` has the reasoning.
+
 ### What applies to this project
 
 ```
