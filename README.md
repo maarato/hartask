@@ -1041,7 +1041,10 @@ Working end to end:
   every `GET /api/context` briefing — slug, title, purpose, never bodies — and
   `GET /api/contexts/<slug>` or `hartask://contexts/<slug>` opens one. An agent
   that had to already know a document existed in order to find it would never
-  read one, which is how a collection like this becomes write-only;
+  read one, which is how a collection like this becomes write-only. They sync
+  like everything else, with one difference: a document's uuid is derived from
+  its slug, so two machines writing the same name reach the same identity
+  instead of colliding on a name that can only be held once;
 - harness scanner: reads the project's instructions, skills, agents, commands,
   hooks and MCP servers off disk, pulling declared servers and hook events out
   of the settings files that declare them. It stores path, scope and a content

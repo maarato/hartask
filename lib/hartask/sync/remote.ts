@@ -90,6 +90,14 @@ const REMOTE_SCHEMA = [
      prompt_uuid TEXT, agent_id TEXT, status TEXT NOT NULL,
      summary TEXT, error TEXT, started_at TEXT, finished_at TEXT
    )`,
+  `CREATE TABLE IF NOT EXISTS shared_contexts (
+     uuid TEXT PRIMARY KEY,
+     project_uuid TEXT NOT NULL,
+     origin TEXT, lamport INTEGER NOT NULL DEFAULT 0,
+     slug TEXT NOT NULL, title TEXT NOT NULL, purpose TEXT, body TEXT,
+     category TEXT, valid_as_of TEXT, created_at TEXT, updated_at TEXT
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_contexts_project ON shared_contexts(project_uuid)`,
   `CREATE INDEX IF NOT EXISTS idx_prompts_project ON prompts(project_uuid)`,
   `CREATE INDEX IF NOT EXISTS idx_runs_project ON prompt_runs(project_uuid)`,
   `CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_uuid)`,
@@ -197,13 +205,20 @@ async function readRemote(
   const tasks = (await query('tasks')) as unknown as TaskRow[];
   const prompts = (await query('prompts')) as unknown as SyncedRow[];
   const promptRuns = (await query('prompt_runs')) as unknown as SyncedRow[];
+  const contexts = (await query('shared_contexts')) as unknown as SyncedRow[];
   const notes = (await query('task_notes')) as unknown as AppendRow[];
   const events = (await query('task_events')) as unknown as AppendRow[];
   const handoffs = (await query('project_handoff')) as unknown as AppendRow[];
 
-  const lamports = [...tasks, ...prompts, ...promptRuns, ...notes, ...events, ...handoffs].map(
-    (row) => Number(row.lamport)
-  );
+  const lamports = [
+    ...tasks,
+    ...prompts,
+    ...promptRuns,
+    ...contexts,
+    ...notes,
+    ...events,
+    ...handoffs
+  ].map((row) => Number(row.lamport));
 
   return {
     origin: storeOrigin,
@@ -212,6 +227,7 @@ async function readRemote(
     tasks,
     prompts,
     prompt_runs: promptRuns,
+    shared_contexts: contexts,
     notes,
     events,
     handoffs
@@ -240,7 +256,8 @@ async function writeRemote(
   const MUTABLE_REMOTE = [
     { table: 'tasks', rows: local.tasks as unknown as Record<string, unknown>[] },
     { table: 'prompts', rows: local.prompts as unknown as Record<string, unknown>[] },
-    { table: 'prompt_runs', rows: local.prompt_runs as unknown as Record<string, unknown>[] }
+    { table: 'prompt_runs', rows: local.prompt_runs as unknown as Record<string, unknown>[] },
+    { table: 'shared_contexts', rows: local.shared_contexts as unknown as Record<string, unknown>[] }
   ].map(({ table, rows }) => ({ table, rows, columns: syncedColumns(table) }));
 
   for (const { table, rows, columns } of MUTABLE_REMOTE) {

@@ -44,6 +44,7 @@ export type Changeset = {
   tasks: TaskRow[];
   prompts: SyncedRow[];
   prompt_runs: SyncedRow[];
+  shared_contexts: SyncedRow[];
   notes: AppendRow[];
   events: AppendRow[];
   handoffs: AppendRow[];
@@ -55,6 +56,7 @@ export type MergeResult = {
   tasks: TableMerge;
   prompts: TableMerge;
   prompt_runs: TableMerge;
+  shared_contexts: TableMerge;
   notes: number;
   events: number;
   handoffs: number;
@@ -74,6 +76,16 @@ type MutableSpec = {
   hasPublicId?: boolean;
   /** Two origins holding the same queued work is worth its own record. */
   claimField?: string;
+  /**
+   * A column that already identifies the row by meaning rather than by chance.
+   *
+   * Rows are normally matched by uuid, because two machines creating separate
+   * things must stay separate. A shared context is the opposite: it is
+   * addressed by a name a person chose, the column is UNIQUE, and two rows
+   * carrying the same name cannot both be stored. Matching on it makes an
+   * incoming document merge into the one already here instead of colliding.
+   */
+  naturalKey?: string;
 };
 
 /**
@@ -139,6 +151,31 @@ const MUTABLE: MutableSpec[] = [
     columns: ['agent_id', 'status', 'summary', 'error', 'started_at', 'finished_at'],
     conflictFields: ['agent_id', 'status', 'summary', 'error', 'finished_at'],
     link: { column: 'prompt_id', uuidField: 'prompt_uuid', table: 'prompts' }
+  },
+  {
+    // No link: a document points at nothing. `valid_as_of` holds a public id as
+    // plain text on purpose, so a reference that cannot be resolved still opens.
+    table: 'shared_contexts',
+    columns: [
+      'slug',
+      'title',
+      'purpose',
+      'body',
+      'category',
+      'valid_as_of',
+      'created_at',
+      'updated_at'
+    ],
+    // The slug is identity, not content, so it is not a field two sides can
+    // disagree about — reaching the same slug is what made them the same row.
+    conflictFields: ['title', 'purpose', 'body', 'category', 'valid_as_of'],
+    link: null,
+    // Two Hartask instances syncing peer to peer never agree on a project uuid
+    // — nothing in that exchange carries one — so a document written on each
+    // side derives a different uuid and would arrive as a second row under a
+    // unique slug. The name is what makes them one document, so the name is
+    // what the merge matches on.
+    naturalKey: 'slug'
   }
 ];
 
@@ -218,13 +255,23 @@ export function exportChangeset(since = 0): Changeset {
       )
       .all(since) as AppendRow[];
 
+  // By name rather than by position: the two lists used to be kept in step by
+  // hand, and a table added to one and indexed from the other in the wrong slot
+  // fails silently, as rows quietly merged into the wrong table.
+  const spec = (table: string): MutableSpec => {
+    const found = MUTABLE.find((candidate) => candidate.table === table);
+    if (!found) throw new Error(`No mutable sync spec for table: ${table}`);
+    return found;
+  };
+
   return {
     origin: origin.id,
     origin_label: origin.label,
     lamport: Math.max(origin.lamport, 0),
-    tasks: exportMutable(MUTABLE[0]) as TaskRow[],
-    prompts: exportMutable(MUTABLE[1]),
-    prompt_runs: exportMutable(MUTABLE[2]),
+    tasks: exportMutable(spec('tasks')) as TaskRow[],
+    prompts: exportMutable(spec('prompts')),
+    prompt_runs: exportMutable(spec('prompt_runs')),
+    shared_contexts: exportMutable(spec('shared_contexts')),
     notes: exportAppend('task_notes', 'task_id'),
     events: exportAppend('task_events', 'task_id'),
     handoffs: exportAppend('project_handoff', 'current_task_id')
@@ -310,8 +357,18 @@ function mergeMutable(spec: MutableSpec, rows: SyncedRow[], peer: string): Table
   const find = db.prepare(`SELECT * FROM ${spec.table} WHERE uuid = ?`);
   const columns = spec.columns;
 
+  const findByName = spec.naturalKey
+    ? db.prepare(`SELECT * FROM ${spec.table} WHERE ${spec.naturalKey} = ?`)
+    : null;
+
   for (const incoming of rows) {
-    const local = find.get(incoming.uuid) as Record<string, unknown> | undefined;
+    // The local row keeps its own uuid when matched by name: adopting the
+    // incoming one would have each side taking the other's on every exchange.
+    // Matching by name again next time costs one lookup and never oscillates.
+    const local = (find.get(incoming.uuid) ??
+      (findByName && spec.naturalKey
+        ? findByName.get(incoming[spec.naturalKey] as string)
+        : undefined)) as Record<string, unknown> | undefined;
 
     if (!local) {
       const values = columns.map((column) =>
@@ -372,7 +429,9 @@ function mergeMutable(spec: MutableSpec, rows: SyncedRow[], peer: string): Table
       incoming.lamport,
       incoming.lamport,
       ...columns.map((column) => (incoming[column] ?? null) as unknown),
-      incoming.uuid
+      // The local row's uuid, which is the incoming one unless this was matched
+      // by name.
+      local.uuid as string
     );
     result.updated++;
 
@@ -425,6 +484,7 @@ export function applyChangeset(changeset: Changeset): MergeResult {
     tasks: emptyMerge(),
     prompts: emptyMerge(),
     prompt_runs: emptyMerge(),
+    shared_contexts: emptyMerge(),
     notes: 0,
     events: 0,
     handoffs: 0
@@ -432,22 +492,24 @@ export function applyChangeset(changeset: Changeset): MergeResult {
 
   const run = db.transaction(() => {
     // A changeset from an older peer may not carry the newer tables at all.
-    const sets: SyncedRow[][] = [
-      changeset.tasks ?? [],
-      changeset.prompts ?? [],
-      changeset.prompt_runs ?? []
-    ];
+    // Keyed by table rather than by position: the old shape sorted rows by the
+    // index they happened to occupy in MUTABLE, and its final `else` meant a
+    // table added later would have been merged into prompt_runs without a word.
+    const sets: Record<string, SyncedRow[]> = {
+      tasks: changeset.tasks ?? [],
+      prompts: changeset.prompts ?? [],
+      prompt_runs: changeset.prompt_runs ?? [],
+      shared_contexts: changeset.shared_contexts ?? []
+    };
 
-    MUTABLE.forEach((spec, index) => {
-      const merged = mergeMutable(spec, sets[index], changeset.origin_label);
-      if (spec.table === 'tasks') result.tasks = merged;
-      else if (spec.table === 'prompts') result.prompts = merged;
-      else result.prompt_runs = merged;
+    const merges = result as unknown as Record<string, TableMerge>;
+    MUTABLE.forEach((spec) => {
+      merges[spec.table] = mergeMutable(spec, sets[spec.table] ?? [], changeset.origin_label);
     });
 
     // Second pass: a link's target may have arrived in the same changeset, so
     // it is resolved only once every row exists.
-    MUTABLE.forEach((spec, index) => resolveLinks(spec, sets[index]));
+    MUTABLE.forEach((spec) => resolveLinks(spec, sets[spec.table] ?? []));
 
     for (const append of APPEND) {
       result[append.key] = insertAppendOnly(

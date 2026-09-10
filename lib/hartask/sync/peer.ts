@@ -94,6 +94,7 @@ export async function syncWithPeer(): Promise<SyncOutcome> {
     tasks: { ...empty },
     prompts: { ...empty },
     prompt_runs: { ...empty },
+    shared_contexts: { ...empty },
     notes: 0,
     events: 0,
     handoffs: 0

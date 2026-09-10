@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { databasePath } from '@/lib/hartask/config';
+import { uuidForName } from '@/lib/hartask/sync/uuid';
 
 type DbHandle = Database.Database;
 
@@ -101,6 +102,34 @@ function backfillIdentity(db: DbHandle): string {
   return local.id;
 }
 
+/**
+ * Gives a shared context the identity its slug implies.
+ *
+ * Documents written before the identity was derived from the name carry a
+ * random uuid, so two machines writing the same document would reach the store
+ * as two rows under one name. Rewriting a uuid is normally out of bounds — it
+ * is what a row is known by everywhere — so this only touches rows that have
+ * never synced, which is exactly the set for which no one else has an opinion
+ * about their identity yet.
+ */
+function realignContextIdentity(db: DbHandle): void {
+  const project = db.prepare(`SELECT uuid FROM projects LIMIT 1`).get() as
+    | { uuid: string | null }
+    | undefined;
+  if (!project?.uuid) return;
+
+  const rows = db
+    .prepare(`SELECT id, slug, uuid FROM shared_contexts WHERE synced_lamport = 0`)
+    .all() as { id: number; slug: string; uuid: string | null }[];
+
+  const stamp = db.prepare(`UPDATE shared_contexts SET uuid = ? WHERE id = ?`);
+  for (const row of rows) {
+    const derived = uuidForName(project.uuid, row.slug);
+    if (row.uuid === derived) continue;
+    stamp.run(derived, row.id);
+  }
+}
+
 function createIndexes(db: DbHandle): void {
   for (const table of SYNCED_TABLES) {
     db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_uuid ON ${table}(uuid)`);
@@ -121,6 +150,7 @@ function open(): DbHandle {
 
   addColumns(db);
   backfillIdentity(db);
+  realignContextIdentity(db);
   // After the backfill, so the index never has to reject pre-existing nulls.
   createIndexes(db);
 

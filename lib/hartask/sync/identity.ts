@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { getDb } from '@/lib/db/client';
 
+export { uuidForName } from '@/lib/hartask/sync/uuid';
+
 export type SyncOrigin = {
   id: string;
   label: string;
@@ -117,6 +119,8 @@ export function observeLamport(seen: number): void {
 export function newUuid(): string {
   return randomUUID();
 }
+
+
 
 /** Stamp applied to every locally created or updated syncable row. */
 export function localStamp(): { uuid: string; origin: string; lamport: number } {

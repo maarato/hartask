@@ -96,12 +96,33 @@ a separate viewer would read to show what is in the store.
 The local schema stays single-project. That scope only means anything on the
 remote side.
 
+## Shared contexts and the name they carry
+
+Most rows are identified by a uuid nobody chose, so two machines creating
+separate things stay separate. A shared context is the opposite: it is
+addressed by a slug someone picked, and two machines both writing `decisions`
+mean the same document. Its uuid is therefore derived from the project and the
+slug (RFC 4122 v5) rather than drawn at random, so the two arrive at the same
+identity without ever having spoken and the merge treats them as one row.
+
+Peer-to-peer sync exchanges no project identity at all, so two instances that
+never adopted a shared project uuid would still derive different ones. The merge
+falls back to matching on the slug for this table, which is why a unique name is
+never asked to hold two rows. The local row keeps its own uuid in that case:
+adopting the incoming one would have each side taking the other's on every
+exchange.
+
+A losing edit is recoverable. `SYNC_CONFLICT` carries the whole discarded row in
+its payload, body included — a document is longer than a task title, so being
+able to read back what was replaced matters more here than anywhere else.
+
 ## What travels, and what does not
 
 | Table | Syncs | Why |
 | --- | --- | --- |
 | `projects`, `tasks`, `task_notes`, `task_events`, `project_handoff` | yes | the project's state and its history |
 | `prompts`, `prompt_runs` | yes | the queue is worth nothing if it only exists on one machine |
+| `shared_contexts` | yes | a document written for the next agent is worth less if it only reaches the agent on this machine |
 | `sync_origins` | no | the identity of *this* database; copying it would make two instances believe they are the same origin |
 | `harness_components`, `harness_scans` | no | they describe files on one machine's disk |
 

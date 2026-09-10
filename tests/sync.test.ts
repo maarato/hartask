@@ -13,6 +13,7 @@ import {
 } from '@/lib/hartask/repositories/tasks';
 import { getDb } from '@/lib/db/client';
 import { updatePrompt } from '@/lib/hartask/repositories/prompts';
+import { getContext, writeContext } from '@/lib/hartask/repositories/contexts';
 import { applyChangeset, exportChangeset } from '@/lib/hartask/sync/changeset';
 import { localOrigin } from '@/lib/hartask/sync/identity';
 import { createPeer, on, type Peer } from './peers';
@@ -357,5 +358,86 @@ describe('public ids', () => {
     ];
     expect(next[0]).not.toBe(next[1]);
     expect(next.filter((id) => /^TASK-\d+$/.test(id))).toHaveLength(1);
+  });
+});
+
+
+describe('shared contexts', () => {
+  it('carries a document across, body included', () => {
+    on(laptop, () =>
+      writeContext({ slug: 'sync-merge', title: 'Merge', purpose: 'Por que Lamport', body: '# uno' })
+    );
+
+    sync(laptop, cloud);
+
+    const arrived = on(cloud, () => getContext('sync-merge'))!;
+    expect(arrived.title).toBe('Merge');
+    expect(arrived.body).toBe('# uno');
+    expect(arrived.purpose).toBe('Por que Lamport');
+  });
+
+  /**
+   * The case a random uuid would have broken. Two machines that never spoke
+   * both write "decisions" — which is what a shared name is for — and the slug
+   * is unique, so two rows cannot both land. Deriving the uuid from the slug
+   * makes them the same row before the merge ever looks.
+   */
+  it('treats the same slug written independently as one document', () => {
+    on(laptop, () => writeContext({ slug: 'decisions', title: 'Decisiones', body: 'del laptop' }));
+    on(cloud, () => writeContext({ slug: 'decisions', title: 'Decisiones', body: 'del cloud' }));
+
+    expect(() => sync(laptop, cloud)).not.toThrow();
+
+    expect(on(cloud, () => getContext('decisions'))).not.toBeNull();
+  });
+
+  it('gives two projects their own document under the same name', () => {
+    const onLaptop = on(laptop, () => writeContext({ slug: 'decisions', title: 'A' }));
+    const onCloud = on(cloud, () => writeContext({ slug: 'decisions', title: 'B' }));
+
+    // Same slug, different project: the namespace keeps them apart.
+    expect(onLaptop.uuid).not.toBe(onCloud.uuid);
+  });
+
+  it('resolves a concurrent edit last-write-wins, like any other row', () => {
+    on(laptop, () => writeContext({ slug: 'sync-merge', title: 'Merge', body: 'original' }));
+    sync(laptop, cloud);
+
+    on(cloud, () => writeContext({ slug: 'sync-merge', body: 'editado en el cloud' }));
+    sync(cloud, laptop);
+
+    expect(on(laptop, () => getContext('sync-merge'))!.body).toBe('editado en el cloud');
+  });
+
+  /**
+   * A document is longer than a task title, so a discarded edit costs more.
+   * The conflict event has to carry enough to get the text back, or the losing
+   * side is simply gone.
+   */
+  it('keeps the discarded text recoverable from the conflict event', () => {
+    on(laptop, () => writeContext({ slug: 'sync-merge', title: 'Merge', body: 'original' }));
+    sync(laptop, cloud);
+
+    on(laptop, () => writeContext({ slug: 'sync-merge', body: 'lo que escribi en el laptop' }));
+    // Three cloud edits put its clock strictly ahead, so the winner is decided
+    // by the clock rather than by the origin tiebreak and the test is stable.
+    on(cloud, () => {
+      writeContext({ slug: 'sync-merge', body: 'uno' });
+      writeContext({ slug: 'sync-merge', body: 'dos' });
+      writeContext({ slug: 'sync-merge', body: 'lo que escribi en el cloud' });
+    });
+    sync(cloud, laptop);
+
+    const conflict = on(laptop, () =>
+      listEvents({ limit: 20 }).find((event) => event.event_type === 'SYNC_CONFLICT')
+    );
+    expect(conflict).toBeDefined();
+
+    const payload = JSON.parse(conflict!.payload_json ?? 'null') as {
+      table: string;
+      discarded_local: { body: string };
+    };
+    expect(payload.table).toBe('shared_contexts');
+    expect(payload.discarded_local.body).toBe('lo que escribi en el laptop');
   });
 });

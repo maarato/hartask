@@ -1,5 +1,6 @@
 import { getDb } from '@/lib/db/client';
-import { localOrigin, localStamp, nextLamport } from '@/lib/hartask/sync/identity';
+import { localOrigin, nextLamport, uuidForName } from '@/lib/hartask/sync/identity';
+import { ensureProject } from '@/lib/hartask/repositories/projects';
 import { normalizeCategory, recordEvent } from '@/lib/hartask/repositories/tasks';
 import type { SharedContext, SharedContextSummary } from '@/lib/hartask/types';
 
@@ -130,15 +131,18 @@ export function writeContext(input: WriteContextInput): SharedContext {
       if (!input.title?.trim()) {
         throw new Error(`A new context needs a title: ${slug}`);
       }
-      const stamp = localStamp();
+      // Derived from the slug rather than drawn at random, so two machines
+      // that both write "decisions" reach the same identity and the merge
+      // treats them as one document — which is what a shared name means. A
+      // random uuid each would arrive at the unique slug as two rows.
       db.prepare(
         `INSERT INTO shared_contexts
            (uuid, origin, lamport, slug, title, purpose, body, category, valid_as_of)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).run(
-        stamp.uuid,
-        stamp.origin,
-        stamp.lamport,
+        uuidForName(ensureProject().uuid, slug),
+        localOrigin().id,
+        nextLamport(),
         slug,
         input.title.trim(),
         input.purpose ?? null,

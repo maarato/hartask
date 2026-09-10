@@ -14,6 +14,7 @@ import {
   listTaskTree,
   setTaskStatus
 } from '@/lib/hartask/repositories/tasks';
+import { getContext, writeContext } from '@/lib/hartask/repositories/contexts';
 import { isRemoteStoreUrl, syncWithRemoteStore } from '@/lib/hartask/sync/remote';
 import { createPeer, on, type Peer } from './peers';
 import { claimPrompt, failLastRun, insertPrompt, listPrompts } from './helpers';
@@ -183,6 +184,43 @@ describe('syncWithRemoteStore', () => {
 
     await sync(desktop, project_uuid);
     expect(on(desktop, () => listTasks())[0].category).toBe('sync');
+  });
+
+  it('puts a shared context in the store, body and all', async () => {
+    on(laptop, () =>
+      writeContext({ slug: 'sync-merge', title: 'Merge', purpose: 'Por que Lamport', body: '# uno' })
+    );
+
+    const { project_uuid } = await sync(laptop);
+
+    // Read the row back rather than trusting that the push reported success.
+    const stored = (await readStore('shared_contexts'))[0];
+    expect(stored.slug).toBe('sync-merge');
+    expect(stored.body).toBe('# uno');
+
+    await sync(desktop, project_uuid);
+    expect(on(desktop, () => getContext('sync-merge'))!.body).toBe('# uno');
+  });
+
+  /**
+   * Both machines have adopted the same project, so both derive the same uuid
+   * from the slug. Without that the store would hold two rows for one document
+   * and every machine would keep pulling the loser back.
+   */
+  it('keeps one row when two adopted machines write the same name', async () => {
+    on(laptop, () => createTask({ title: 'algo de trabajo' }));
+    const { project_uuid } = await sync(laptop);
+    // The desktop adopts the project and pulls: no documents exist yet, so
+    // what follows is each machine creating one, not one copying the other.
+    await sync(desktop, project_uuid);
+
+    on(laptop, () => writeContext({ slug: 'decisions', title: 'Decisiones', body: 'del laptop' }));
+    on(desktop, () => writeContext({ slug: 'decisions', title: 'Decisiones', body: 'del desktop' }));
+
+    await sync(laptop);
+    await sync(desktop, project_uuid);
+
+    expect((await readStore('shared_contexts')).length).toBe(1);
   });
 
   it('carries the prompt queue and its runs through the store', async () => {
