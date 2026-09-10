@@ -2,6 +2,7 @@ import { configPath, syncSettings } from '@/lib/hartask/config';
 import { listSettings, type SettingView } from '@/lib/hartask/settings';
 import { ensureProject } from '@/lib/hartask/repositories/projects';
 import { listOrigins } from '@/lib/hartask/sync/identity';
+import { lastSync, type LastSync } from '@/lib/hartask/sync/run';
 import { saveSettingsAction, syncNowAction } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,68 @@ function OverrideNote({ override }: { override: NonNullable<SettingView['overrid
       Viene de <code>{override.name}</code>. Lo que guardes aquí queda escrito, pero no tendrá
       efecto mientras esa variable siga puesta.
     </span>
+  );
+}
+
+/**
+ * What the last sync did.
+ *
+ * A refusal is the guard doing its job — it stops this board from being folded
+ * into another project — so it reads as a instruction with a way out, not as a
+ * breakage. A transport failure is the opposite: nothing here is wrong, the
+ * other side could not be reached.
+ */
+function LastSyncNotice({ outcome }: { outcome: LastSync }) {
+  if (outcome.kind === 'completed') {
+    return (
+      <p className="muted small">
+        Última sincronización: {outcome.at}
+      </p>
+    );
+  }
+
+  const configured = (outcome.detail as { configured?: string } | null)?.configured;
+
+  return (
+    <div className="card notice stack">
+      <span>
+        <strong>
+          {outcome.kind === 'refused'
+            ? 'La sincronización se detuvo sola'
+            : 'No se pudo sincronizar'}
+        </strong>
+        <div className="muted small">{outcome.at}</div>
+      </span>
+
+      {outcome.kind === 'refused' ? (
+        <span>
+          El id de proyecto configurado
+          {configured ? (
+            <>
+              {' '}
+              (<code>{configured}</code>)
+            </>
+          ) : null}{' '}
+          es de otro board, y este ya tiene tasks propias. Seguir habría fundido los dos
+          en un solo proyecto, y ninguna sincronización posterior los puede separar.
+          <div className="muted small">
+            Si este es un proyecto nuevo, quita <code>HARTASK_SYNC_PROJECT_ID</code>: esa
+            variable es solo para una segunda máquina que se une a un proyecto que ya
+            existe en el almacén. Si de verdad quieres mover este board, sincroniza una
+            vez con <code>{'{"action":"sync","adopt_project":true}'}</code> contra{' '}
+            <code>POST /api/sync</code>. El detalle está en <code>docs/SYNC.md</code>.
+          </div>
+        </span>
+      ) : (
+        <span>
+          {outcome.summary}
+          <div className="muted small">
+            No hay nada mal en este board: no se pudo llegar al otro lado. Revisa la URL,
+            el secreto y la conexión, y vuelve a intentarlo.
+          </div>
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -50,6 +113,7 @@ export default function SettingsPage() {
   const remote = syncSettings();
   const origins = listOrigins();
   const project = ensureProject();
+  const syncState = lastSync();
   // Empty on the original machine, which syncs under the project's own uuid.
   const joinedProjectId = String(projectId.value ?? '');
   const effectiveProjectId = joinedProjectId || project.uuid;
@@ -188,6 +252,8 @@ export default function SettingsPage() {
             </div>
           ))}
         </dl>
+
+        {syncState ? <LastSyncNotice outcome={syncState} /> : null}
 
         {remote.url && remote.token ? (
           <form action={syncNowAction}>

@@ -40,6 +40,12 @@ stored. Press **Sincronizar ahora**, or `POST /api/sync` with
 
 The remote schema is created on the first sync. Nothing has to be prepared.
 
+Either way the outcome is recorded — `SYNC_COMPLETED`, `SYNC_REFUSED` or
+`SYNC_FAILED` — and `/settings` shows the most recent one. A refusal is not a
+breakage: it is the guard below stopping a merge, and the page says which way
+out applies. A sync that succeeds afterwards clears the notice, because what is
+shown is the last attempt rather than the last problem.
+
 ## Adding a second machine
 
 Each database mints its own project uuid, so a second machine has to be told

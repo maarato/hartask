@@ -4,9 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { renameProject } from '@/lib/hartask/repositories/projects';
 import { saveSettings } from '@/lib/hartask/settings';
 import { autoArchiveIfEnabled } from '@/lib/hartask/auto-archive';
-import { syncSettings } from '@/lib/hartask/config';
-import { syncWithPeer } from '@/lib/hartask/sync/peer';
-import { isRemoteStoreUrl, syncWithRemoteStore } from '@/lib/hartask/sync/remote';
+import { runSync } from '@/lib/hartask/sync/run';
 
 function text(formData: FormData, field: string): string | null {
   const value = formData.get(field);
@@ -49,10 +47,24 @@ export async function saveSettingsAction(formData: FormData): Promise<void> {
   revalidatePath('/tasks');
 }
 
+/**
+ * A sync that fails is not a broken app, and it must not look like one.
+ *
+ * The refusal in particular is the guard working: it stops a board from being
+ * folded into another project. Letting that surface as an unhandled error
+ * would teach the user to distrust the one thing standing between them and a
+ * merge no later sync can undo.
+ *
+ * The outcome is left in the event trail rather than thrown, and `/settings`
+ * reads it after the revalidate — which also means a sync run from the API
+ * shows up the same way.
+ */
 export async function syncNowAction(): Promise<void> {
-  const { url } = syncSettings();
-  if (isRemoteStoreUrl(url)) await syncWithRemoteStore();
-  else await syncWithPeer();
+  try {
+    await runSync();
+  } catch {
+    // Already recorded as SYNC_REFUSED or SYNC_FAILED by runSync.
+  }
 
   revalidatePath('/settings');
   revalidatePath('/summary');

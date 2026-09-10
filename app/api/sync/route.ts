@@ -3,8 +3,9 @@ import { syncSettings } from '@/lib/hartask/config';
 import { ensureProject } from '@/lib/hartask/repositories/projects';
 import { listEvents } from '@/lib/hartask/repositories/tasks';
 import { listOrigins } from '@/lib/hartask/sync/identity';
-import { receiveExchange, syncWithPeer, verifySyncToken } from '@/lib/hartask/sync/peer';
-import { isRemoteStoreUrl, SyncRefusedError, syncWithRemoteStore } from '@/lib/hartask/sync/remote';
+import { receiveExchange, verifySyncToken } from '@/lib/hartask/sync/peer';
+import { isRemoteStoreUrl, SyncRefusedError } from '@/lib/hartask/sync/remote';
+import { runSync } from '@/lib/hartask/sync/run';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,17 +54,10 @@ export async function POST(request: Request) {
 
   if (!authorization && (body as { action?: string })?.action === 'sync') {
     try {
-      // A libsql:, file: or ws: URL is a passive store; http(s) is another
-      // Hartask instance to exchange changesets with.
-      const { url } = syncSettings();
       // adopt_project is a parameter of the call rather than a setting, so the
       // override cannot travel inside a copied .env.local.
       const adoptProject = (body as { adopt_project?: unknown })?.adopt_project === true;
-      return NextResponse.json(
-        isRemoteStoreUrl(url)
-          ? await syncWithRemoteStore({ adoptProject })
-          : await syncWithPeer()
-      );
+      return NextResponse.json(await runSync({ adoptProject }));
     } catch (error) {
       // A refusal is a conflict in how this instance is configured, not a
       // failure to reach the other side.
