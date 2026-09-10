@@ -1,4 +1,4 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { HARTASK_AGENT_CONTRACT } from '@/lib/hartask/contract';
 import { onboarding } from '@/lib/hartask/onboarding';
@@ -15,6 +15,7 @@ import {
   failPrompt,
   listPrompts
 } from '@/lib/hartask/repositories/prompts';
+import { contextIndex, getContext } from '@/lib/hartask/repositories/contexts';
 import { ensureProject } from '@/lib/hartask/repositories/projects';
 import {
   addNote,
@@ -459,6 +460,51 @@ export function createHartaskMcpServer(): McpServer {
 
   resource('hartask://history/recent', 'recent-history', 'What happened lately', () =>
     listEvents({ limit: 50 })
+  );
+
+  resource(
+    'hartask://contexts',
+    'contexts',
+    'Shared contexts: durable documents agents write for each other. Index only, no bodies',
+    () => contextIndex()
+  );
+
+  // A template with a list callback, so a client can enumerate the documents
+  // instead of having to be told a slug. The index is what keeps this
+  // collection from being written to and never read.
+  server.registerResource(
+    'context',
+    new ResourceTemplate('hartask://contexts/{slug}', {
+      list: async () => ({
+        resources: contextIndex().map((doc) => ({
+          uri: `hartask://contexts/${doc.slug}`,
+          name: doc.title,
+          description: doc.purpose ?? undefined,
+          mimeType: 'application/json'
+        }))
+      })
+    }),
+    {
+      description: 'One shared context, body included',
+      mimeType: 'application/json'
+    },
+    async (uri, variables) => {
+      const slug = String(variables.slug);
+      const document = getContext(slug);
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: 'application/json',
+            text: JSON.stringify(
+              document ?? { error: `No shared context named ${slug}` },
+              null,
+              2
+            )
+          }
+        ]
+      };
+    }
   );
 
   resource(

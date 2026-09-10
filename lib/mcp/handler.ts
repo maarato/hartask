@@ -66,6 +66,8 @@ export function describeMcp(): Response {
       'hartask://tasks/current',
       'hartask://prompts/queue',
       'hartask://history/recent',
+      'hartask://contexts',
+      'hartask://contexts/{slug}',
       'hartask://harness'
     ],
     not_implemented: []

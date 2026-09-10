@@ -47,6 +47,34 @@ export function listContexts(): SharedContextSummary[] {
     .all() as SharedContextSummary[];
 }
 
+/**
+ * What a briefing carries: enough to decide whether to open a document, and
+ * nothing more.
+ *
+ * The listing is the guard that keeps this collection from becoming
+ * write-only, so it has to stay cheap enough to include unconditionally —
+ * which means no bodies, and none of the sync bookkeeping a reader has no use
+ * for. `valid_as_of` is in, because a document that claims to be current is
+ * worth less than one that says when it last was.
+ */
+export function contextIndex(): {
+  slug: string;
+  title: string;
+  purpose: string | null;
+  category: string | null;
+  valid_as_of: string | null;
+  updated_at: string;
+}[] {
+  return listContexts().map((doc) => ({
+    slug: doc.slug,
+    title: doc.title,
+    purpose: doc.purpose,
+    category: doc.category,
+    valid_as_of: doc.valid_as_of,
+    updated_at: doc.updated_at
+  }));
+}
+
 export function getContext(slug: string): SharedContext | null {
   return (
     (getDb()

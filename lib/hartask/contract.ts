@@ -39,9 +39,17 @@ Available today over HTTP on this same server:
   GET   /api/handoff               current handoff (?history=true for previous checkpoints)
   POST  /api/handoff               { current_task, done, current_state, next, problems,
                                      important_files, important_decisions, agent_run_id }
+  GET   /api/contexts              shared contexts: index only, never the bodies
+  GET   /api/contexts/{slug}       one shared context, body included
   GET   /api/harness               instructions, skills, agents, MCP servers, hooks
   POST  /api/harness               rescan the project's harness
   GET   /api/health
+
+Shared contexts are durable documents agents write for each other: how a part
+works and why, kept so it is not re-derived every session. The index rides in
+GET /api/context on every briefing, so you never have to guess whether one
+exists. What the project IS belongs in Project Context, where you left off in a
+handoff, and what you found doing one task in a note on that task.
 
 Status transitions record events automatically; do not log them separately.
 

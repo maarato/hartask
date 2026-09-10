@@ -1030,7 +1030,13 @@ Working end to end:
 - `GET/POST /api/tasks` and `GET/PATCH /api/tasks/[id]` (accepts `TASK-001` or a
   numeric id) with request validation;
 - MCP over Streamable HTTP at `/mcp`: 15 semantic tools over the repositories
-  and seven `hartask://` resources;
+  and nine `hartask://` resources, one of them a template that lists the shared
+  contexts it can serve;
+- shared contexts, surfaced rather than stored and forgotten: the index rides in
+  every `GET /api/context` briefing — slug, title, purpose, never bodies — and
+  `GET /api/contexts/<slug>` or `hartask://contexts/<slug>` opens one. An agent
+  that had to already know a document existed in order to find it would never
+  read one, which is how a collection like this becomes write-only;
 - harness scanner: reads the project's instructions, skills, agents, commands,
   hooks and MCP servers off disk, pulling declared servers and hook events out
   of the settings files that declare them. It stores path, scope and a content
