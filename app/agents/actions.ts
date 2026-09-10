@@ -1,7 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { removeContext, writeContext } from '@/lib/hartask/repositories/contexts';
+import { writeAgentExport, type ExportHost } from '@/lib/hartask/agents';
+import { getContext, removeContext, writeContext } from '@/lib/hartask/repositories/contexts';
 
 function text(formData: FormData, field: string): string | null {
   const value = formData.get(field);
@@ -47,4 +48,27 @@ export async function removeAgentAction(formData: FormData): Promise<void> {
   removeContext(slug, 'human');
 
   revalidatePath('/agents');
+}
+
+
+/**
+ * Writes a role into the host's own tree.
+ *
+ * This is the one place Hartask writes into a project it otherwise only
+ * observes, so it happens on its own submit, after the page has shown the exact
+ * path and the exact text. Nothing here runs as a side effect of saving a role.
+ */
+export async function exportAgentAction(formData: FormData): Promise<void> {
+  const slug = text(formData, 'slug');
+  const host = text(formData, 'host');
+  if (!slug || (host !== 'claude' && host !== 'cursor')) return;
+
+  const role = getContext(slug, 'agent');
+  if (!role) return;
+
+  writeAgentExport(role, host as ExportHost);
+
+  revalidatePath('/agents');
+  // An exported role is a file on disk, which is what the harness reports.
+  revalidatePath('/harness');
 }

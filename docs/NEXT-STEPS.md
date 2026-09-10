@@ -83,9 +83,18 @@ copied into other repositories.
     Harness draws itself from the scan, so the picture cannot drift from the
     disk; Summary draws whatever ```mermaid block the Project Context contains.
     Both degrade to the diagram source rather than to an empty box.
-13. Add optional adapters/bootstrap injection for AGENTS.md, Claude, Cursor and
-    Codex.
-14. Add Stop/session-end integration where a host supports hooks.
+13. ~~Add adapters for Claude and Cursor.~~ **Done.** A role defined in Hartask
+    is written into the same paths the scanner reads — `.claude/agents/<slug>.md`
+    and `.cursor/rules/<slug>.mdc` — so the next scan finds what was exported.
+    It is the one thing Hartask writes into a project it otherwise only
+    observes, so it never happens as a side effect: the page shows the exact
+    path and the exact text, and writing is its own submit.
+    Codex is not a destination. The scanner matches a `.codex/` directory and
+    nothing inside it, so there is no slot anyone verified.
+14. Inject the Hartask bootstrap into an existing `AGENTS.md`. Editing a file
+    the user wrote is a different decision from creating one in a conventional
+    slot, and needs an answer for what happens on the second run.
+15. Add Stop/session-end integration where a host supports hooks.
 
 ## Auto-archive
 

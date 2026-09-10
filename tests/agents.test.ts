@@ -1,9 +1,13 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resetConfigCache } from '@/lib/hartask/config';
-import { composeAgentBrief } from '@/lib/hartask/agents';
+import {
+  composeAgentBrief,
+  planAgentExport,
+  writeAgentExport
+} from '@/lib/hartask/agents';
 import {
   contextIndex,
   countContexts,
@@ -11,6 +15,7 @@ import {
   listContexts,
   writeContext
 } from '@/lib/hartask/repositories/contexts';
+import { listEvents } from '@/lib/hartask/repositories/tasks';
 import { runHarnessScan } from '@/lib/hartask/repositories/harness';
 import { resetDb } from './helpers';
 
@@ -140,5 +145,74 @@ describe('composeAgentBrief', () => {
     const role = writeContext({ slug: 'arquitecto', kind: 'agent', title: 'Arquitecto' });
 
     expect(composeAgentBrief(role)).toMatch(/Never access hartask\.sqlite directly/i);
+  });
+});
+
+
+/**
+ * Exporting is the only thing Hartask writes into a project it otherwise only
+ * observes, so what it writes and where has to be pinned rather than trusted.
+ */
+describe('exporting a role into a host', () => {
+  function role() {
+    return writeContext({
+      slug: 'arquitecto',
+      kind: 'agent',
+      title: 'Arquitecto',
+      purpose: 'Cuando hay que decidir una forma',
+      body: 'Mira primero los limites.'
+    });
+  }
+
+  it('lands where the scanner already looks, so the next scan finds it', () => {
+    const claude = planAgentExport(role(), 'claude');
+    const cursor = planAgentExport(role(), 'cursor');
+
+    expect(claude.path.endsWith(join('.claude', 'agents', 'arquitecto.md'))).toBe(true);
+    expect(cursor.path.endsWith(join('.cursor', 'rules', 'arquitecto.mdc'))).toBe(true);
+  });
+
+  // The host reads the description to decide whether to invoke the role. A
+  // frontmatter that does not parse makes the file inert rather than loud.
+  it('gives the host a frontmatter it can read', () => {
+    const plan = planAgentExport(role(), 'claude');
+
+    expect(plan.content.split(String.fromCharCode(10))[0]).toBe('---');
+    expect(plan.content).toContain('name: "arquitecto"');
+    expect(plan.content).toContain('description: "Cuando hay que decidir una forma"');
+    expect(plan.content).toContain('Mira primero los limites.');
+  });
+
+  it('plans without writing, because the preview is what the user agreed to', () => {
+    const plan = planAgentExport(role(), 'claude');
+
+    expect(existsSync(plan.path)).toBe(false);
+    expect(plan.exists).toBe(false);
+  });
+
+  it('writes the file and says the export happened', () => {
+    const written = writeAgentExport(role(), 'claude');
+
+    expect(readFileSync(written.path, 'utf8')).toBe(written.content);
+    expect(listEvents({ limit: 5 })[0].event_type).toBe('AGENT_EXPORTED');
+  });
+
+  it('says a file is already there rather than overwriting it quietly', () => {
+    writeAgentExport(role(), 'claude');
+
+    expect(planAgentExport(role(), 'claude').exists).toBe(true);
+  });
+
+  it('carries the composed connection section, not just what was typed', () => {
+    process.env.HARTASK_PORT = '43222';
+    resetConfigCache();
+
+    expect(writeAgentExport(role(), 'cursor').content).toContain('http://localhost:43222');
+  });
+
+  it('stays inside the project it was pointed at', () => {
+    const plan = planAgentExport(role(), 'claude');
+
+    expect(plan.path.startsWith(project)).toBe(true);
   });
 });

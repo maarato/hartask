@@ -1044,7 +1044,10 @@ Working end to end:
   instance — its port, and what the last harness scan actually found — because a
   file that says `43127` is wrong the moment a second project takes a port of its
   own. Roles and documents are the same rows with a different `kind`, which is
-  the whole cost of telling them apart;
+  the whole cost of telling them apart. A role can be written into the host's
+  own tree — `.claude/agents/<slug>.md`, `.cursor/rules/<slug>.mdc` — which is
+  the one thing Hartask writes into a project it otherwise only observes, so it
+  happens on its own submit after the page has shown the exact path and text;
 - shared contexts at `/contexts`, a tab of their own rather than a third block
   on Summary, which is a briefing and not a shelf: collapsed cards showing what
   decides whether to open one, the body read as written with any ```mermaid
