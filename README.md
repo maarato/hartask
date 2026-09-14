@@ -1032,9 +1032,11 @@ Working end to end:
   across the project;
 - `GET/POST /api/tasks` and `GET/PATCH /api/tasks/[id]` (accepts `TASK-001` or a
   numeric id) with request validation;
-- MCP over Streamable HTTP at `/mcp`: 17 semantic tools over the repositories
-  and nine `hartask://` resources, one of them a template that lists the shared
-  contexts it can serve. The write tool for shared contexts carries the boundary
+- MCP over Streamable HTTP at `/mcp`: 20 semantic tools over the repositories
+  and ten `hartask://` resources, one of them a template that lists the shared
+  contexts it can serve. What the discovery response advertises is checked
+  against what the server actually registers, in both directions, so an agent is
+  never told about a tool that is not there. The write tool for shared contexts carries the boundary
   in its own description — a handoff, a note and Project Context are each the
   right home for something a document is not — because a tool description is the
   one thing an agent reads without fail;

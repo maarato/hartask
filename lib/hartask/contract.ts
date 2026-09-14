@@ -31,7 +31,8 @@ Available today over HTTP on this same server:
   GET   /api/tasks                 list and hierarchy
   POST  /api/tasks                 { title, status, next_action, parent_id, agent_id }
   GET   /api/tasks/{id}            one task with its notes and events (TASK-001 or numeric id)
-  PATCH /api/tasks/{id}            { status, next_action, blocked_reason, note, agent_id }
+  PATCH /api/tasks/{id}            { status, title, description, priority, next_action,
+                                   blocked_reason, category, archived, note, agent_id }
   GET   /api/prompts               the queue, with counts per status
   POST  /api/prompts               { prompt, title, task_id, status, priority, position }
   POST  /api/prompts/claim         { agent_id } -> takes the next READY prompt, atomically
@@ -41,8 +42,11 @@ Available today over HTTP on this same server:
   GET   /api/handoff               current handoff (?history=true for previous checkpoints)
   POST  /api/handoff               { current_task, done, current_state, next, problems,
                                      important_files, important_decisions, agent_run_id }
+  PATCH /api/context               { context } replaces the Project Context entirely
   GET   /api/contexts              shared contexts: index only, never the bodies
   GET   /api/contexts/{slug}       one shared context, body included
+  PUT   /api/contexts/{slug}       { title, purpose, body, category, valid_as_of } —
+                                   a field left out keeps what the document says
   GET   /api/harness               instructions, skills, agents, MCP servers, hooks
   POST  /api/harness               rescan the project's harness
   GET   /api/sync                  whether a remote is configured, this project's uuid, the

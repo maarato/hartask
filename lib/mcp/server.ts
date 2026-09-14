@@ -2,6 +2,7 @@ import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mc
 import { z } from 'zod';
 import { syncSettings } from '@/lib/hartask/config';
 import { HARTASK_AGENT_CONTRACT } from '@/lib/hartask/contract';
+import { redactedConfig } from '@/lib/hartask/settings';
 import { onboarding } from '@/lib/hartask/onboarding';
 import {
   lastHarnessScan,
@@ -17,9 +18,10 @@ import {
   listPrompts
 } from '@/lib/hartask/repositories/prompts';
 import { contextIndex, getContext, writeContext } from '@/lib/hartask/repositories/contexts';
-import { ensureProject } from '@/lib/hartask/repositories/projects';
+import { ensureProject, updateProjectSummary } from '@/lib/hartask/repositories/projects';
 import {
   addNote,
+  archiveTask,
   countTasksByStatus,
   createTask,
   getCurrentTask,
@@ -29,6 +31,7 @@ import {
   listTaskTree,
   recordEvent,
   setTaskStatus,
+  unarchiveTask,
   updateTask
 } from '@/lib/hartask/repositories/tasks';
 import { listOrigins } from '@/lib/hartask/sync/identity';
@@ -228,8 +231,10 @@ export function createHartaskMcpServer(): McpServer {
         id: z.string(),
         status: z.enum(TASK_STATUSES).optional(),
         title: z.string().optional(),
+        description: z.string().nullable().optional(),
         next_action: z.string().optional(),
         blocked_reason: z.string().optional().describe('Why it is blocked, when status is BLOCKED'),
+        priority: z.number().optional(),
         category: z
           .string()
           .nullable()
@@ -238,20 +243,75 @@ export function createHartaskMcpServer(): McpServer {
         agent_id: z.string().optional()
       }
     },
-    async ({ id, status, title, next_action, blocked_reason, category, agent_id }) => {
+    async ({
+      id,
+      status,
+      title,
+      description,
+      next_action,
+      blocked_reason,
+      priority,
+      category,
+      agent_id
+    }) => {
       const task = getTaskByRef(id);
       if (!task) return failure(`Task not found: ${id}`);
       return json(
         updateTask(task.id, {
           status,
           title,
+          description,
           nextAction: next_action,
           blockedReason: blocked_reason,
+          priority,
           category,
           agentId: agent_id ?? 'mcp'
         })
       );
     }
+  );
+
+  server.registerTool(
+    'hartask_archive_task',
+    {
+      description:
+        'Take a finished or abandoned task off the board, or put it back. Archiving is ' +
+        'orthogonal to status: it hides a task without changing whether it was done. Only a ' +
+        'root task in DONE or BACKLOG can be archived, and it takes its subtasks with it.',
+      inputSchema: {
+        id: z.string(),
+        restore: z.boolean().optional().describe('Put it back on the board instead'),
+        agent_id: z.string().optional()
+      }
+    },
+    async ({ id, restore, agent_id }) => {
+      const task = getTaskByRef(id);
+      if (!task) return failure(`Task not found: ${id}`);
+      try {
+        return json(
+          restore
+            ? unarchiveTask(task.id, agent_id ?? 'mcp')
+            : archiveTask(task.id, agent_id ?? 'mcp')
+        );
+      } catch (error) {
+        // A subtask, or a task that is still open: the rule is the caller's to
+        // respect, so it is named rather than swallowed.
+        return failure((error as Error).message);
+      }
+    }
+  );
+
+  server.registerTool(
+    'hartask_write_project_context',
+    {
+      description:
+        'Replace the Project Context: what this project IS, short enough to read in a minute. ' +
+        'It is the whole text, not an append. Change it for a real architectural or product ' +
+        'shift — where you left off is a handoff, and how a part works is a shared context ' +
+        '(hartask_write_context_doc).',
+      inputSchema: { context: z.string() }
+    },
+    async ({ context }) => json(updateProjectSummary(context))
   );
 
   server.registerTool(
@@ -657,6 +717,16 @@ The configuration is wrong rather than the network, ` +
     }
   );
 
+  // Read, never write. An agent that knows the archive threshold and whether a
+  // store is configured makes better decisions; one that can change the sync
+  // URL or rename the project makes a change the user never saw happen.
+  resource(
+    'hartask://settings',
+    'settings',
+    'The effective configuration, secrets redacted. Read-only: only the user changes it',
+    () => redactedConfig()
+  );
+
   resource(
     'hartask://harness',
     'harness',
@@ -667,7 +737,14 @@ The configuration is wrong rather than the network, ` +
   return server;
 }
 
-/** Exposed for the discovery response, so the two never disagree. */
+/**
+ * The tools this server registers, for the discovery response at GET /mcp.
+ *
+ * Hand-written and kept honest by a test that compares it against what
+ * tools/list actually answers, in both directions. The comment here used to
+ * claim the two could not disagree, which nothing enforced — a tool added to
+ * one list and not the other left discovery lying, quietly.
+ */
 export function hartaskToolNames(): string[] {
   return [
     'hartask_start_session',
@@ -684,6 +761,8 @@ export function hartaskToolNames(): string[] {
     'hartask_complete_prompt',
     'hartask_fail_prompt',
     'hartask_update_handoff',
+    'hartask_archive_task',
+    'hartask_write_project_context',
     'hartask_sync',
     'hartask_get_context_doc',
     'hartask_write_context_doc',

@@ -3,7 +3,7 @@ import { contextIndex } from '@/lib/hartask/repositories/contexts';
 import { promptQueueBriefing } from '@/lib/hartask/repositories/prompts';
 import { onboarding } from '@/lib/hartask/onboarding';
 import { getLatestHandoff } from '@/lib/hartask/repositories/handoff';
-import { ensureProject } from '@/lib/hartask/repositories/projects';
+import { ensureProject, updateProjectSummary } from '@/lib/hartask/repositories/projects';
 import {
   countTasksByStatus,
   getCurrentTask,
@@ -53,4 +53,31 @@ export async function GET() {
     ...(firstRun ? { onboarding: firstRun } : {}),
     prompts: promptQueueBriefing()
   });
+}
+
+/**
+ * Replacing the Project Context.
+ *
+ * It had no programmatic write path at all — not here, not over MCP — so the
+ * only way to correct it was the form on /summary. An agent could read it and
+ * not fix it, which is the one piece of state that describes the project
+ * itself.
+ */
+export async function PATCH(request: Request) {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+
+  if (typeof body.context !== 'string') {
+    return NextResponse.json(
+      { error: '`context` is required and replaces the whole Project Context' },
+      { status: 400 }
+    );
+  }
+
+  const project = updateProjectSummary(body.context);
+  return NextResponse.json({ project: { name: project.name, summary: project.summary } });
 }

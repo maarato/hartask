@@ -4,11 +4,13 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 import { createPrompt } from '@/lib/hartask/repositories/prompts';
+import { ensureProject } from '@/lib/hartask/repositories/projects';
 import { getDb } from '@/lib/db/client';
 import { resetConfigCache, syncSettings } from '@/lib/hartask/config';
-import { createTask } from '@/lib/hartask/repositories/tasks';
+import { createTask, getTask, listTasks } from '@/lib/hartask/repositories/tasks';
 import { listOrigins } from '@/lib/hartask/sync/identity';
 import { createHartaskMcpServer, hartaskToolNames } from '@/lib/mcp/server';
+import { describeMcp } from '@/lib/mcp/handler';
 import { SingleExchangeTransport } from '@/lib/mcp/transport';
 import { resetDb } from './helpers';
 
@@ -341,5 +343,92 @@ describe('shared context tools', () => {
     expect(names).toContain('hartask_get_context_doc');
     expect(names).toContain('hartask_write_context_doc');
     expect(hartaskToolNames()).toEqual(expect.arrayContaining(names));
+  });
+});
+
+
+/**
+ * GET /mcp advertises what this server offers, from lists written by hand next
+ * to the registrations. Nothing makes them agree, so this does: a tool or a
+ * resource added to one and not the other leaves discovery lying about what an
+ * agent can call, which is the failure an agent finds by calling and failing.
+ */
+describe('what discovery advertises', () => {
+  it('names every tool the server registers, and no others', async () => {
+    const reply = await rpc('tools/list');
+    const registered = (reply.result as { tools: { name: string }[] }).tools.map((t) => t.name);
+
+    expect([...hartaskToolNames()].sort()).toEqual([...registered].sort());
+  });
+
+  it('names every resource the server registers, and no others', async () => {
+    const advertised = (await (describeMcp() as Response).json()) as { resources: string[] };
+
+    const listed = await rpc('resources/list');
+    const direct = (listed.result as { resources: { uri: string }[] }).resources.map((r) => r.uri);
+
+    const templates = await rpc('resources/templates/list');
+    const patterns = (
+      templates.result as { resourceTemplates?: { uriTemplate: string }[] }
+    ).resourceTemplates?.map((t) => t.uriTemplate) ?? [];
+
+    expect([...advertised.resources].sort()).toEqual([...direct, ...patterns].sort());
+  });
+});
+
+
+/**
+ * An agent working over MCP used to be able to do less than one making curl
+ * calls, and nobody had decided that. These pin what closed.
+ */
+describe('what MCP can reach that it could not', () => {
+  it('corrects a description and a priority, not only a title', async () => {
+    const task = createTask({ title: 'una task', description: 'mal escrita', priority: 0 });
+
+    await callTool('hartask_update_task', {
+      id: task.public_id,
+      description: 'corregida',
+      priority: 40
+    });
+
+    const updated = getTask(task.id)!;
+    expect(updated.description).toBe('corregida');
+    expect(updated.priority).toBe(40);
+  });
+
+  it('takes a finished task off the board and puts it back', async () => {
+    const task = createTask({ title: 'terminada', status: 'DONE' });
+
+    await callTool('hartask_archive_task', { id: task.public_id });
+    expect(listTasks().map((t) => t.id)).not.toContain(task.id);
+
+    await callTool('hartask_archive_task', { id: task.public_id, restore: true });
+    expect(listTasks().map((t) => t.id)).toContain(task.id);
+  });
+
+  // The rules are the repository's; the tool has to report them rather than
+  // fail in a way that reads like the board is broken.
+  it('says why a task cannot be archived instead of failing obscurely', async () => {
+    const open = createTask({ title: 'en curso', status: 'IN_PROGRESS' });
+
+    const result = await callTool('hartask_archive_task', { id: open.public_id });
+
+    expect(result.isError).toBe(true);
+    expect(String(result.data)).toMatch(/IN_PROGRESS/);
+  });
+
+  // The one piece of state that describes the project itself had no write path
+  // at all: an agent could read it and not fix it.
+  it('replaces the Project Context', async () => {
+    await callTool('hartask_write_project_context', { context: 'Lo que este proyecto es.' });
+
+    expect(ensureProject().summary).toBe('Lo que este proyecto es.');
+  });
+
+  it('reads the settings without handing back the secret', async () => {
+    const reply = await rpc('resources/read', { uri: 'hartask://settings' });
+    const text = (reply.result as { contents: { text: string }[] }).contents[0].text;
+
+    expect(JSON.parse(text).syncToken).toMatch(/configurado|sin configurar/);
   });
 });

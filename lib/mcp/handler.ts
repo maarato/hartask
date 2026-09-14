@@ -68,6 +68,7 @@ export function describeMcp(): Response {
       'hartask://history/recent',
       'hartask://contexts',
       'hartask://contexts/{slug}',
+      'hartask://settings',
       'hartask://harness'
     ],
     not_implemented: []
