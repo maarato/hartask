@@ -1064,6 +1064,11 @@ Working end to end:
   like everything else, with one difference: a document's uuid is derived from
   its slug, so two machines writing the same name reach the same identity
   instead of colliding on a name that can only be held once;
+- six skills Hartask ships, in `skills/`, installed into a project's own
+  `.claude/skills/` from the Harness view — versioned here because a skill has to
+  travel with a clone, installed there because that is where a host reads them.
+  None of them carries a rule alone: a skill only runs where the host supports
+  skills, so what they add is the flow and the judgement;
 - harness scanner: reads the project's instructions, skills, agents, commands,
   hooks and MCP servers off disk, pulling declared servers and hook events out
   of the settings files that declare them. It stores path, scope and a content

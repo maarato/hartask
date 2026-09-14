@@ -7,7 +7,8 @@ import {
   listHarnessComponents,
   type HarnessComponent
 } from '@/lib/hartask/repositories/harness';
-import { scanHarnessAction } from './actions';
+import { bundledSkills, planSkillInstall } from '@/lib/hartask/skills';
+import { installSkillAction, scanHarnessAction } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +40,60 @@ function Component({ component }: { component: HarnessComponent }) {
         <span className="muted small">· {component.content_hash.slice(0, 8)}</span>
       ) : null}
     </li>
+  );
+}
+
+/**
+ * The skills Hartask carries, and putting them where this project reads them.
+ *
+ * On this page because this is where the question "what does my agent have
+ * here" is asked, and installing one changes the answer. The rest of the page
+ * reports what a scan found; this section is the one thing that writes, which
+ * is why it shows the path and the text before it does.
+ */
+function SkillsHartaskBrings() {
+  const skills = bundledSkills();
+  if (!skills.length) return null;
+
+  return (
+    <article className="card stack">
+      <header className="section-head">
+        <h2>Skills que Hartask trae</h2>
+        <p className="muted small">
+          Flujos empaquetados para el host de este proyecto. Instalarlas las escribe en{' '}
+          <code>.claude/skills/</code>, que es lo único que Hartask escribe aquí.
+        </p>
+      </header>
+
+      {skills.map((skill) => {
+        const plan = planSkillInstall(skill);
+        return (
+          <details key={skill.name} className="card">
+            <summary>
+              <strong>{skill.name}</strong>
+              {plan.exists ? <span className="muted small"> · instalada</span> : null}
+            </summary>
+            <div className="stack">
+              <p className="muted small">{skill.description}</p>
+              <p className="muted small">
+                Se escribe en <code>{plan.path}</code>
+              </p>
+              <pre className="diagram-source brief">{plan.content}</pre>
+              <form action={installSkillAction}>
+                <input type="hidden" name="name" value={skill.name} />
+                <button type="submit">{plan.exists ? 'Reinstalar' : 'Instalar'}</button>
+              </form>
+            </div>
+          </details>
+        );
+      })}
+
+      <p className="muted small">
+        Una skill solo corre si el host la soporta, así que ninguna de estas carga una regla sola:
+        lo que aportan es el flujo y el criterio. Las reglas viven también en el contrato que sirve{' '}
+        <code>/mcp</code> y en la descripción de cada tool.
+      </p>
+    </article>
   );
 }
 
@@ -114,6 +169,8 @@ export default function HarnessPage() {
           </p>
         </article>
       )}
+
+      <SkillsHartaskBrings />
 
       <article className="card stack">
         <header className="section-head">

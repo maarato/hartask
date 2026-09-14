@@ -1,6 +1,14 @@
-# Hartask Agent Skills — proposed V1
+# Hartask Agent Skills
 
-Hartask should work without these skills if MCP instructions/tools are available. Skills are workflow enhancers, not the source of truth.
+These exist, in `skills/<name>/SKILL.md`. They are files in this repository
+rather than rows because a skill has to travel with a clone — the rule in
+`WHERE-IT-GOES.md` — and they reach a project through **Harness → Skills que
+Hartask trae**, which writes them into that project's `.claude/skills/`. Shipping
+them is only half: a host reads `.claude/skills/` at the project root, not
+`hartask/skills/`.
+
+Hartask works without them when MCP instructions and tools are available. Skills
+are workflow enhancers, not the source of truth.
 
 That is not a style preference, it is the constraint these have to be written
 under: a skill only runs if the host supports skills. Anything stated only here
