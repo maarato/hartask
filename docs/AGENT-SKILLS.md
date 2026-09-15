@@ -58,3 +58,16 @@ Full reasoning in `docs/WHERE-IT-GOES.md`.
 ## hartask-harness-inspector
 Use when the user asks what instructions, skills, hooks, agents, MCP servers, tools or guardrails apply to the project.
 Hartask should scan the project filesystem and distinguish detected facts from inferred behavior.
+
+## hartask-board-view
+Use when the question is about the board, the queue or the harness as a whole
+rather than one row, and a plain list would bury the answer.
+
+Hartask serves rows and never HTML, deliberately: markup has to carry the host's
+own design tokens, and a fragment built with Hartask's CSS lands in a chat
+window with foreign colours. So the data is fetched from Hartask and the view is
+built for whichever host is rendering it — and where no renderer exists, which
+is most of them, a markdown table is the answer rather than a described picture.
+
+Render a shape, answer a lookup: what is open and in what order deserves a view,
+one task's status does not.

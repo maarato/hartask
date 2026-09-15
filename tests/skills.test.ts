@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -38,6 +38,7 @@ describe('the skills Hartask ships', () => {
     const names = bundledSkills().map((skill) => skill.name);
 
     expect(names).toEqual([
+      'hartask-board-view',
       'hartask-harness-inspector',
       'hartask-project-context',
       'hartask-prompt-runner',
@@ -56,10 +57,16 @@ describe('the skills Hartask ships', () => {
     }
   });
 
+  // Against the directory listing, not against itself: planSkillInstall builds
+  // the path out of the same name it was handed, so asserting the path here
+  // would agree with whatever the frontmatter said.
   it('names each skill the same in its frontmatter and its directory', () => {
-    for (const skill of bundledSkills()) {
-      expect(planSkillInstall(skill).path).toContain(join('.claude', 'skills', skill.name));
-    }
+    const directories = readdirSync('skills', { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort((a, b) => a.localeCompare(b));
+
+    expect(bundledSkills().map((skill) => skill.name)).toEqual(directories);
   });
 });
 
