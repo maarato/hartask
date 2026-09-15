@@ -19,6 +19,7 @@ import {
   unarchiveTask,
   updateTask
 } from '@/lib/hartask/repositories/tasks';
+import { TASK_STATUSES } from '@/lib/hartask/types';
 import { resetDb } from './helpers';
 
 beforeEach(() => resetDb());
@@ -99,6 +100,29 @@ describe('updateTask', () => {
 
   it('throws for an unknown task', () => {
     expect(() => updateTask('TASK-999', { status: 'DONE' })).toThrow(/not found/i);
+  });
+
+  /**
+   * A non-restriction, tested because the seven statuses look like a state
+   * machine and whoever reads them next will reach for one. The board's own
+   * history says otherwise: of its first 116 transitions, 88 skipped a state
+   * and none ran backwards. The chain describes the usual path and does not
+   * gate it, so rejecting a transition would block work that is ordinary --
+   * a one-line task going straight from BACKLOG to DONE is 24 of those 116.
+   * Reasoning and the rejected alternative are in the shared context
+   * `decisions`.
+   */
+  it('accepts every transition, including the ones that skip a state', () => {
+    for (const from of TASK_STATUSES) {
+      for (const to of TASK_STATUSES) {
+        if (from === to) continue;
+
+        const task = createTask({ title: from + ' to ' + to, status: from });
+
+        expect(setTaskStatus(task.public_id, to).status).toBe(to);
+        expect(listEvents({ taskId: task.id })[0].event_type).toBe('TASK_STATUS_CHANGED');
+      }
+    }
   });
 });
 

@@ -11,8 +11,10 @@ hartask_update_task  { id, status: 'DONE' } when it is finished
 ```
 
 States: `BACKLOG` → `READY` → `IN_PROGRESS` → `REVIEW` → `DONE`, with `BLOCKED`
-and `CANCELLED` off to the side. A status change records its own event — do not
-log it separately.
+and `CANCELLED` off to the side. That order is the usual path and not a gate:
+no transition is rejected, and a one-line task going straight from `BACKLOG` to
+`DONE` is ordinary rather than a shortcut. A status change records its own
+event — do not log it separately.
 
 ## Writing a task someone else can act on
 

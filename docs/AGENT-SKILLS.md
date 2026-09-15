@@ -23,7 +23,7 @@ Flow: `hartask_start_session` -> inspect current task/handoff -> fetch only addi
 
 ## hartask-task-workflow
 Use when creating, claiming, progressing, blocking, reviewing or completing a task.
-Canonical states: BACKLOG -> READY -> IN_PROGRESS -> REVIEW -> DONE, with BLOCKED/CANCELLED as side states.
+Usual path: BACKLOG -> READY -> IN_PROGRESS -> REVIEW -> DONE, with BLOCKED/CANCELLED as side states. It describes, it does not gate: no transition is rejected and skipping a state is ordinary.
 Record meaningful task events, not every file write.
 
 ## hartask-prompt-runner
