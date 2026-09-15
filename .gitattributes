@@ -1,0 +1,17 @@
+# Line endings belong to the repository, not to whoever cloned it.
+#
+# Git for Windows ships core.autocrlf=true, so on a Windows machine the index
+# comes out LF by accident of an installer default rather than by decision. A
+# contributor without that default commits CRLF instead, and from then on every
+# clone on Linux or macOS reads files rewritten end to end with nothing in them
+# changed. Worse, an editor that appends LF to a checked-out CRLF file leaves it
+# mixed, which no diff explains.
+#
+# This takes the machine out of the decision.
+
+* text=auto eol=lf
+
+# Not a preference: cmd.exe reads a batch file line by line while it runs, and
+# is known to misbehave on LF alone around labels and goto.
+*.bat text eol=crlf
+*.cmd text eol=crlf
