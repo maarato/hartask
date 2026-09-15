@@ -125,8 +125,13 @@ emptied itself is distinguishable from one someone cleared by hand.
   multi-project is ever wanted, that is a schema migration, not a config change.
 - `listTaskTree()` promotes a task to root level when its parent is filtered out
   of the result set, so a filtered view never hides tasks silently.
-- Status transitions are unconstrained: any status can move to any other. If the
-  lifecycle should be enforced, that belongs in the repository, not the UI.
+- Status transitions are unconstrained, and TASK-031 decided to leave them that
+  way rather than leaving the question open. The board's own history settled it:
+  of 116 recorded transitions 88 skipped a state and none ran backwards, so
+  enforcing the chain would reject most ordinary use while preventing something
+  that has never happened. The reasoning is in the shared context `decisions`,
+  and a test over all 42 ordered pairs keeps a state machine from arriving
+  quietly.
 - An agent can only reach Hartask while the dev server is running. A `hartask`
   CLI would remove that dependency for much less work than MCP, and does not
   break the "never touch the database directly" rule, because the CLI is
