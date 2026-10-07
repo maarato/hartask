@@ -3,6 +3,8 @@ import { getLatestHandoff } from '@/lib/hartask/repositories/handoff';
 import { listTasks } from '@/lib/hartask/repositories/tasks';
 import type { Task } from '@/lib/hartask/types';
 import { ProductoCard } from '@/components/producto-card';
+import { todosLosCosteos } from '@/lib/micho/costos';
+import { stockPorProducto } from '@/lib/micho/stock';
 import { resumenFichas } from '@/lib/micho/fichas';
 import { ESTADOS, listarParametros, listarProductos } from '@/lib/micho/catalogo';
 
@@ -46,6 +48,8 @@ function Tareas({ tareas }: { tareas: Task[] }) {
 export default function MichoPage() {
   const productos = listarProductos();
   const fichas = resumenFichas();
+  const costeos = todosLosCosteos();
+  const stock = stockPorProducto();
   const listos = productos.filter((p) => p.estado === 'Listo');
 
   // Root tasks with children are only area headers on this board, not work.
@@ -95,7 +99,7 @@ export default function MichoPage() {
         </header>
         <div className="catalogo">
           {listos.map((p) => (
-            <ProductoCard key={p.nombre} p={p} avance={p.slug ? fichas.get(p.slug) : null} />
+            <ProductoCard key={p.nombre} p={p} avance={p.slug ? fichas.get(p.slug) : null} costeo={p.slug ? costeos.get(p.slug) : null} stock={p.slug ? stock.get(p.slug)?.total : undefined} />
           ))}
         </div>
       </section>

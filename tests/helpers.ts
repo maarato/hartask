@@ -11,6 +11,11 @@ export function resetDb(): void {
   const db = getDb();
   db.exec(`
     DELETE FROM micho_product_tasks;
+    DELETE FROM micho_movimientos;
+    DELETE FROM micho_stock_materiales;
+    DELETE FROM micho_stock_productos;
+    DELETE FROM micho_producto_insumos;
+    DELETE FROM micho_insumos;
     DELETE FROM task_events;
     DELETE FROM task_notes;
     DELETE FROM prompt_runs;

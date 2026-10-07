@@ -29,6 +29,8 @@ export type Producto = {
   notas: string | null;
   /** Project-relative path of the first photo found, for /api/micho/archivo. */
   foto: string | null;
+  /** Every photo the card carousel shows, first one being `foto`. */
+  fotos: string[];
   /**
    * URL segment for /productos/[slug] and the key of the product's ficha. Built
    * from the folder without its state prefix, so moving a product from
@@ -47,7 +49,7 @@ export type Archivo = {
   subcarpeta: string;
 };
 
-export type DetalleProducto = Producto & {
+export type DetalleProducto = Omit<Producto, 'fotos'> & {
   existe: boolean;
   fotos: Archivo[];
   archivos: Archivo[];
@@ -152,25 +154,46 @@ export function slugDe(carpeta: string): string {
     .replace(/^-|-$/g, '');
 }
 
-/**
- * First image of a product: its `Fotos/` folder first, then the folder itself,
- * one level deep — the disk is slow, so no recursive walk.
- */
-function primeraFoto(carpeta: string): string | null {
-  const abs = rutaDeProducto(carpeta);
-  if (!abs || !existsSync(abs)) return null;
-  for (const dir of [join(abs, 'Fotos'), abs]) {
-    try {
-      if (!statSync(dir).isDirectory()) continue;
-      const img = readdirSync(dir)
-        .filter((f) => IMAGENES.has(extname(f).toLowerCase()))
-        .sort((a, b) => a.localeCompare(b))[0];
-      if (img) return aRelativa(join(dir, img));
-    } catch {
-      // A folder we cannot read just has no photo.
-    }
+/** A card carousel is a preview, not the gallery: the detail page has the rest. */
+const MAX_FOTOS_TARJETA = 12;
+
+function imagenesEn(dir: string): string[] {
+  try {
+    return readdirSync(dir)
+      .filter((f) => IMAGENES.has(extname(f).toLowerCase()))
+      .sort((a, b) => a.localeCompare(b))
+      .map((f) => join(dir, f));
+  } catch {
+    // A folder we cannot read just has no photos.
+    return [];
   }
-  return null;
+}
+
+function subcarpetas(dir: string): string[] {
+  try {
+    return readdirSync(dir, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => join(dir, d.name))
+      .sort((a, b) => a.localeCompare(b));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * A product's photos: `Fotos/` and its direct subfolders first, then images
+ * loose in the folder itself. Shallow on purpose — the disk is slow.
+ */
+function fotosDe(carpeta: string): string[] {
+  const abs = rutaDeProducto(carpeta);
+  if (!abs || !existsSync(abs)) return [];
+  const fotos = join(abs, 'Fotos');
+  const encontradas = [
+    ...imagenesEn(fotos),
+    ...subcarpetas(fotos).flatMap(imagenesEn),
+    ...imagenesEn(abs)
+  ];
+  return encontradas.slice(0, MAX_FOTOS_TARJETA).map(aRelativa);
 }
 
 export function listarProductos(): Producto[] {
@@ -182,6 +205,7 @@ export function listarProductos(): Producto[] {
     if (!estado) continue;
     for (const fila of tabla.filas) {
       const carpeta = fila['Carpeta'] || null;
+      const fotos = carpeta ? fotosDe(carpeta) : [];
       productos.push({
         nombre: fila['Producto'] ?? '',
         estado,
@@ -190,7 +214,8 @@ export function listarProductos(): Producto[] {
         carpeta,
         canales: fila['Canales'] && !['?', '—', '-'].includes(fila['Canales']) ? fila['Canales'] : null,
         notas: fila['Notas'] || fila['Qué falta'] || null,
-        foto: carpeta ? primeraFoto(carpeta) : null,
+        foto: fotos[0] ?? null,
+        fotos,
         slug: carpeta ? slugDe(sinEstado(carpeta)) : null
       });
     }

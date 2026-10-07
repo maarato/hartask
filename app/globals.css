@@ -251,3 +251,81 @@ button.mini { padding:3px 9px; font-size:12px; border-radius:7px; }
 @media (max-width: 620px) {
   .tarea-fila { flex-wrap:wrap; }
 }
+
+/* Rejilla / Lista: one segmented control, the active view carries the weight. */
+.vista-toggle {
+  margin-left:auto; display:inline-flex; border:1px solid #2a2f37; border-radius:9px; overflow:hidden;
+}
+.vista-toggle a { padding:6px 14px; font-size:13px; color:#9aa4b2; }
+.vista-toggle a + a { border-left:1px solid #2a2f37; }
+.vista-toggle a:hover { color:#e4e9f0; background:#161b22; }
+.vista-toggle a[aria-current="page"] { color:#dbe6ff; background:#1b2740; font-weight:600; }
+
+.fila { display:grid; grid-template-columns:120px minmax(0,1fr) minmax(0,300px); gap:16px; padding:12px; align-items:start; }
+.fila-foto { width:120px; aspect-ratio:1; object-fit:cover; border-radius:10px; background:#0e1216; display:flex; align-items:center; justify-content:center; }
+.fila-info { gap:6px; min-width:0; }
+.fila-nombre { font-weight:700; font-size:15px; }
+.fila-nombre:hover { color:#9dbaff; }
+.fila-extracto { color:#c3cad4; line-height:1.5; }
+.fila-hallazgo { color:#c3cad4; }
+.fila-carpeta { align-self:flex-start; word-break:break-all; }
+.fila-tareas { gap:8px; min-width:0; border-left:1px solid #1e242c; padding-left:16px; }
+.fila-tarea { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fila-tarea:hover { color:#9dbaff; }
+@media (max-width: 760px) {
+  .fila { grid-template-columns:80px minmax(0,1fr); }
+  .fila-foto { width:80px; }
+  .fila-tareas { grid-column:1 / -1; border-left:0; padding-left:0; border-top:1px solid #1e242c; padding-top:10px; }
+}
+/* With the Micho Store tabs the bar no longer fits a phone: it scrolls inside
+   itself instead of pushing the page sideways. */
+.tab span { white-space:nowrap; }
+@media (max-width: 760px) {
+  .tabs { overflow-x:auto; scrollbar-width:none; }
+  .tab { flex:0 0 auto; padding-left:12px; padding-right:12px; }
+}
+
+/* Card carousel: a scroll-snap strip (swipe works without script), arrows
+   and counter on top. Overrides the single-photo .producto img rule. */
+.carrusel { position:relative; }
+.carrusel-pista {
+  display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none;
+  aspect-ratio:4/3; background:#0e1216;
+}
+.carrusel-pista::-webkit-scrollbar { display:none; }
+.producto .carrusel-pista img {
+  flex:0 0 100%; width:100%; height:100%; aspect-ratio:auto; object-fit:cover; scroll-snap-align:start;
+}
+.carrusel-vacio { aspect-ratio:4/3; }
+.carrusel-flecha {
+  position:absolute; top:50%; transform:translateY(-50%);
+  width:30px; height:30px; padding:0; border-radius:50%; line-height:1; font-size:20px;
+  background:rgba(11,13,16,.7); border:1px solid #3b4350; color:#f5f7fa;
+  opacity:0; transition:opacity .12s ease;
+}
+.carrusel-flecha.izq { left:8px; }
+.carrusel-flecha.der { right:8px; }
+.carrusel:hover .carrusel-flecha, .carrusel-flecha:focus-visible { opacity:1; }
+.carrusel-flecha:hover { background:rgba(27,34,43,.9); }
+.carrusel-cuenta {
+  position:absolute; right:8px; bottom:8px; font-size:11px; padding:2px 7px; border-radius:999px;
+  background:rgba(11,13,16,.7); color:#e4e9f0;
+}
+/* Touch screens have no hover: keep the arrows visible there. */
+@media (hover: none) { .carrusel-flecha { opacity:.85; } }
+.producto-info:hover strong { color:#9dbaff; }
+
+.badge.costo { border-color:#2f9e6b; color:#82dcb2; }
+.badge.costo-incompleto { border-color:#c98a2b; color:#f0c274; }
+.badge.costo-falta { border-style:dashed; color:#8b93a1; }
+.materiales { color:#c3cad4; }
+.insumo { align-items:center; padding:10px 12px; }
+.insumo-precio { flex:0 0 auto; gap:6px; }
+
+/* Stock */
+.badge.stock { border-color:#3d6be0; color:#9dbaff; }
+.mini-form { margin:0; gap:6px; flex-wrap:nowrap; }
+.mini-form input { flex:0 0 72px !important; width:72px; padding:4px 7px; font-size:12px; }
+.mini-details summary { white-space:nowrap; padding:3px 0; }
+.mini-details[open] { display:flex; gap:6px; flex-wrap:wrap; }
+.stock-bajo td:first-child { box-shadow:inset 3px 0 0 #c98a2b; }

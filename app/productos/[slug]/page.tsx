@@ -1,16 +1,21 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { urlArchivo } from '@/components/producto-card';
+import { CostoBadge, urlArchivo } from '@/components/producto-card';
 import { Markdown } from '@/components/markdown';
 import { listTasks } from '@/lib/hartask/repositories/tasks';
 import { CLOSED_STATUSES, TASK_STATUSES, type TaskStatus } from '@/lib/hartask/types';
+import { cantidad, costeoDe, listarInsumos, pesos } from '@/lib/micho/costos';
 import { obtenerFicha } from '@/lib/micho/fichas';
+import { movimientos, stockPorProducto } from '@/lib/micho/stock';
+import { fabricarAction, salidaProductoAction } from '../../stock/actions';
 import {
   agregarHallazgoAction,
+  agregarInsumoProductoAction,
   agregarTareaAction,
   cambiarEstadoTareaAction,
   guardarAvanceAction,
-  guardarInfoAction
+  guardarInfoAction,
+  quitarInsumoProductoAction
 } from './actions';
 import { detalleProducto, type Archivo } from '@/lib/micho/catalogo';
 
@@ -72,12 +77,23 @@ function EstadoBoton({ publicId, status, label }: { publicId: string; status: Ta
   );
 }
 
-export default async function ProductoPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ProductoPage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ faltan?: string }>;
+}) {
   const { slug } = await params;
+  const { faltan } = await searchParams;
   const p = detalleProducto(slug);
   if (!p) notFound();
 
   const ficha = obtenerFicha(slug);
+  const costeo = costeoDe(slug);
+  const insumos = listarInsumos();
+  const stock = stockPorProducto().get(slug);
+  const movs = movimientos({ slug, limite: 10 });
   const abiertas = ficha?.subtareas.filter((t) => !CLOSED_STATUSES.includes(t.status)) ?? [];
   const cerradas = ficha?.subtareas.filter((t) => CLOSED_STATUSES.includes(t.status)) ?? [];
 
@@ -238,6 +254,173 @@ export default async function ProductoPage({ params }: { params: Promise<{ slug:
             </ul>
           </div>
         ) : null}
+      </section>
+
+      <section className="card stack">
+        <header className="section-head">
+          <h2>Stock</h2>
+          <span className="badge stock">{stock?.total ?? 0} listas</span>
+          <Link href="/stock" className="muted small" style={{ marginLeft: 'auto' }}>
+            Todo el stock →
+          </Link>
+        </header>
+        {faltan ? (
+          <p className="blocked small" style={{ margin: 0 }}>
+            Se fabricó, pero no alcanzaba el material registrado: {faltan} quedó en negativo. Ajusta el conteo en{' '}
+            <Link href="/stock" className="task-link">
+              Stock
+            </Link>
+            .
+          </p>
+        ) : null}
+        {stock?.variantes.some((v) => v.cantidad !== 0) ? (
+          <ul className="linked-list">
+            {stock.variantes
+              .filter((v) => v.cantidad !== 0)
+              .map((v) => (
+                <li key={v.variante} className="row tarea-fila" style={{ margin: 0 }}>
+                  <strong className={v.cantidad < 0 ? 'blocked' : undefined}>{v.cantidad} pz</strong>
+                  <span className="small tarea-titulo">{v.variante || 'sin variante'}</span>
+                  <form action={salidaProductoAction} className="row mini-form tarea-acciones">
+                    <input type="hidden" name="slug" value={slug} />
+                    <input type="hidden" name="variante" value={v.variante} />
+                    <input name="piezas" inputMode="numeric" placeholder="Pz" required aria-label="Piezas vendidas" />
+                    <button type="submit" className="mini">
+                      Vendí
+                    </button>
+                  </form>
+                </li>
+              ))}
+          </ul>
+        ) : null}
+        <form action={fabricarAction} className="row form" style={{ marginTop: 0 }}>
+          <input type="hidden" name="slug" value={slug} />
+          <input type="hidden" name="volver" value={`/productos/${slug}`} />
+          <input name="piezas" inputMode="numeric" placeholder="Piezas" required style={{ flex: '0 1 90px' }} />
+          <input name="variante" placeholder="Variante / color (opcional)" style={{ flex: '0 1 200px' }} />
+          <label className="row checkbox small" style={{ margin: 0, flex: '0 0 auto', alignItems: 'center' }}>
+            <input type="checkbox" name="descontar" defaultChecked={!!costeo} disabled={!costeo} /> Descontar materiales
+          </label>
+          <button type="submit">Fabriqué</button>
+        </form>
+        {!costeo ? (
+          <span className="muted small">Sin costeo no hay materiales que descontar: se suman solo las piezas.</span>
+        ) : null}
+        {movs.length ? (
+          <details>
+            <summary className="small muted">Últimos movimientos</summary>
+            <ul className="plain small" style={{ marginTop: 8 }}>
+              {movs.map((m) => (
+                <li key={m.id}>
+                  {fechaLocal(m.created_at)} · {m.motivo} ·{' '}
+                  {m.tipo === 'producto'
+                    ? `${m.delta > 0 ? '+' : ''}${m.delta} pz${m.detalle ? ` ${m.detalle}` : ''}`
+                    : `${m.delta > 0 ? '+' : ''}${cantidad(m.delta)} ${m.unidad} ${m.insumo}${m.detalle ? ` ${m.detalle}` : ''}`}
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
+      </section>
+
+      <section className="card stack">
+        <header className="section-head">
+          <h2>Producción y costo</h2>
+          <CostoBadge costeo={costeo} />
+          <Link href="/insumos" className="muted small" style={{ marginLeft: 'auto' }}>
+            Insumos y precios →
+          </Link>
+        </header>
+        {costeo ? (
+          <div className="tabla-wrap">
+            <table className="tabla">
+              <thead>
+                <tr>
+                  <th>Insumo</th>
+                  <th>Cantidad</th>
+                  <th>Color</th>
+                  <th style={{ textAlign: 'right' }}>Precio</th>
+                  <th style={{ textAlign: 'right' }}>Subtotal</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {costeo.lineas.map((l) => (
+                  <tr key={l.id}>
+                    <td>
+                      {l.insumo} <span className="muted small">{l.tipo}</span>
+                      {l.nota ? <div className="muted small">{l.nota}</div> : null}
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      {cantidad(l.cantidad)} {l.unidad}
+                    </td>
+                    <td>{l.color ?? <span className="muted">—</span>}</td>
+                    <td className="muted" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      {l.precio === null ? (
+                        <Link href="/insumos" className="blocked small">
+                          sin precio
+                        </Link>
+                      ) : (
+                        `${pesos(l.precio)} / ${l.unidad}`
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      {l.subtotal === null ? '—' : pesos(l.subtotal)}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <form action={quitarInsumoProductoAction}>
+                        <input type="hidden" name="id" value={l.id} />
+                        <button type="submit" className="mini" aria-label={`Quitar ${l.insumo}`}>
+                          Quitar
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+                <tr>
+                  <td colSpan={4} style={{ textAlign: 'right' }}>
+                    <strong>Costo de producción{costeo.completo ? '' : ' (incompleto)'}</strong>
+                  </td>
+                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <strong>{pesos(costeo.total)}</strong>
+                  </td>
+                  <td />
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="muted small">
+            Sin costeo todavía. Agrega lo que lleva una pieza: material (cuánto y de qué color), tiempo de máquina,
+            empaque…
+          </p>
+        )}
+        {insumos.length ? (
+          <form action={agregarInsumoProductoAction} className="row form">
+            <input type="hidden" name="slug" value={slug} />
+            <select name="insumo_id" required defaultValue="" style={{ flex: '1 1 180px' }}>
+              <option value="" disabled>
+                Insumo…
+              </option>
+              {insumos.map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.nombre} ({i.unidad})
+                </option>
+              ))}
+            </select>
+            <input name="cantidad" inputMode="decimal" placeholder="Cantidad" required style={{ flex: '0 1 110px' }} />
+            <input name="color" placeholder="Color (opcional)" style={{ flex: '0 1 150px' }} />
+            <input name="nota" placeholder="Nota (opcional)" />
+            <button type="submit">Agregar</button>
+          </form>
+        ) : (
+          <p className="small">
+            Primero da de alta tus insumos en <Link href="/insumos" className="task-link">Insumos</Link>.
+          </p>
+        )}
+        <span className="muted small">
+          Por pieza: si una hoja de MDF rinde 2 piezas, pon 0.5 hojas. Las horas de máquina se ponen en horas (30 min = 0.5).
+        </span>
       </section>
 
       <section className="card stack">

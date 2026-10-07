@@ -191,3 +191,61 @@ CREATE TABLE IF NOT EXISTS micho_product_tasks (
   task_uuid TEXT NOT NULL UNIQUE,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Micho Store: insumos con precio por unidad (material, horas de máquina,
+-- empaque...) y lo que cada producto usa de ellos. El costo de un producto
+-- se calcula de aquí; precio NULL = todavía sin precio.
+CREATE TABLE IF NOT EXISTS micho_insumos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  tipo TEXT NOT NULL DEFAULT 'Material',
+  unidad TEXT NOT NULL,
+  precio REAL,
+  notas TEXT,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS micho_producto_insumos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug TEXT NOT NULL,
+  insumo_id INTEGER NOT NULL REFERENCES micho_insumos(id),
+  cantidad REAL NOT NULL,
+  color TEXT,
+  nota TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_micho_producto_insumos_slug ON micho_producto_insumos(slug);
+
+-- Micho Store: existencias. Color y variante usan '' en vez de NULL para que
+-- el UNIQUE agrupe "sin color" como un solo renglón.
+CREATE TABLE IF NOT EXISTS micho_stock_materiales (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  insumo_id INTEGER NOT NULL REFERENCES micho_insumos(id),
+  color TEXT NOT NULL DEFAULT '',
+  cantidad REAL NOT NULL DEFAULT 0,
+  minimo REAL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(insumo_id, color)
+);
+
+CREATE TABLE IF NOT EXISTS micho_stock_productos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug TEXT NOT NULL,
+  variante TEXT NOT NULL DEFAULT '',
+  cantidad INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(slug, variante)
+);
+
+-- Historial de todo cambio de existencias, de materiales o de productos.
+CREATE TABLE IF NOT EXISTS micho_movimientos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tipo TEXT NOT NULL CHECK(tipo IN ('material','producto')),
+  insumo_id INTEGER REFERENCES micho_insumos(id),
+  slug TEXT,
+  detalle TEXT NOT NULL DEFAULT '',
+  delta REAL NOT NULL,
+  motivo TEXT NOT NULL,
+  nota TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

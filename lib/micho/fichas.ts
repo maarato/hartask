@@ -109,3 +109,13 @@ export function listarVinculos(): { slug: string; public_id: string }[] {
     )
     .all() as { slug: string; public_id: string }[];
 }
+
+/** Every linked product's full ficha, for the list view. Few products, so one read each is fine. */
+export function todasLasFichas(): Map<string, Ficha> {
+  const out = new Map<string, Ficha>();
+  for (const { slug } of listarVinculos()) {
+    const ficha = obtenerFicha(slug);
+    if (ficha) out.set(slug, ficha);
+  }
+  return out;
+}

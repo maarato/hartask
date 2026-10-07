@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { addNote, createTask, setTaskStatus, updateTask } from '@/lib/hartask/repositories/tasks';
 import { isTaskStatus } from '@/lib/hartask/types';
 import { listarProductos } from '@/lib/micho/catalogo';
+import { agregarLinea, borrarLinea } from '@/lib/micho/costos';
 import { asegurarFicha, CATEGORIA } from '@/lib/micho/fichas';
 
 function text(formData: FormData, field: string): string | null {
@@ -77,5 +78,34 @@ export async function agregarHallazgoAction(formData: FormData): Promise<void> {
   if (!body) return;
   const tarea = ficha(formData);
   addNote(tarea.id, body, 'human');
+  refrescar();
+}
+
+function numero(formData: FormData, field: string): number | null {
+  const raw = text(formData, field)?.replace(',', '.');
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) ? n : null;
+}
+
+/** A product's supply line. The product must exist; its ficha is not needed for costs. */
+export async function agregarInsumoProductoAction(formData: FormData): Promise<void> {
+  const slug = text(formData, 'slug');
+  const insumoId = numero(formData, 'insumo_id');
+  const cant = numero(formData, 'cantidad');
+  if (!slug || !listarProductos().some((p) => p.slug === slug)) return;
+  if (!insumoId || !cant || cant <= 0) return;
+  agregarLinea(slug, {
+    insumoId,
+    cantidad: cant,
+    color: text(formData, 'color'),
+    nota: text(formData, 'nota')
+  });
+  refrescar();
+}
+
+export async function quitarInsumoProductoAction(formData: FormData): Promise<void> {
+  const id = numero(formData, 'id');
+  if (!id) return;
+  borrarLinea(id);
   refrescar();
 }
