@@ -5,7 +5,7 @@ import { CostoBadge, urlArchivo } from '@/components/producto-card';
 import { Markdown } from '@/components/markdown';
 import { listTasks } from '@/lib/hartask/repositories/tasks';
 import { CLOSED_STATUSES, TASK_STATUSES, type TaskStatus } from '@/lib/hartask/types';
-import { cantidad, costeoDe, listarInsumos, pesos } from '@/lib/micho/costos';
+import { cantidad, costeoDe, listarInsumos, nombreInsumo, pesos } from '@/lib/micho/costos';
 import { obtenerFicha } from '@/lib/micho/fichas';
 import { canalCompleto, cuenta, listarCanales, margenObjetivo, precioSugerido, preciosDe } from '@/lib/micho/precios';
 import { movimientos, stockPorProducto } from '@/lib/micho/stock';
@@ -413,7 +413,7 @@ export default async function ProductoPage({
               </option>
               {insumos.map((i) => (
                 <option key={i.id} value={i.id}>
-                  {i.nombre} ({i.unidad})
+                  {nombreInsumo(i)} ({i.unidad})
                 </option>
               ))}
             </select>

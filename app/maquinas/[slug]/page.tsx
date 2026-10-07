@@ -4,7 +4,7 @@ import { Color, ListaColores } from '@/components/color';
 import { Markdown } from '@/components/markdown';
 import { CLOSED_STATUSES, type TaskStatus } from '@/lib/hartask/types';
 import { listarProductos } from '@/lib/micho/catalogo';
-import { listarInsumos } from '@/lib/micho/costos';
+import { listarInsumos, nombreInsumo, resumenUso, todosLosPuntosTemp } from '@/lib/micho/costos';
 import { obtenerFicha } from '@/lib/micho/fichas';
 import {
   claveFicha,
@@ -76,6 +76,8 @@ export default async function MaquinaPage({ params }: { params: Promise<{ slug: 
   const productosLista = listarProductos().filter((p) => p.slug);
   const productos = new Map<string | null, string>(productosLista.map((p) => [p.slug, p.nombre]));
   const insumos = listarInsumos().filter((i) => i.tipo !== 'Máquina');
+  const porId = new Map(insumos.map((i) => [i.id, i]));
+  const puntos = todosLosPuntosTemp();
   const tareas = ficha?.subtareas.filter((t) => !CLOSED_STATUSES.includes(t.status)) ?? [];
   const tareasHechas = ficha?.subtareas.filter((t) => CLOSED_STATUSES.includes(t.status)) ?? [];
   const ultimoEnCola = abiertos.filter((t) => t.estado === 'En cola').at(-1)?.id;
@@ -137,6 +139,9 @@ export default async function MaquinaPage({ params }: { params: Promise<{ slug: 
                 {c.insumo || c.color ? (
                   <>
                     {c.insumo ? <strong>{c.insumo}</strong> : null} {c.color ? <Color nombre={c.color} /> : null}
+                    {c.insumo_id && porId.get(c.insumo_id) && resumenUso(porId.get(c.insumo_id)!, puntos.get(c.insumo_id) ?? []) ? (
+                      <span className="small temp-ref-maquina"> · {resumenUso(porId.get(c.insumo_id)!, puntos.get(c.insumo_id) ?? [])}</span>
+                    ) : null}
                     {c.nota ? <span className="muted small"> · {c.nota}</span> : null}
                   </>
                 ) : (
@@ -147,7 +152,7 @@ export default async function MaquinaPage({ params }: { params: Promise<{ slug: 
                 <option value="">Material…</option>
                 {insumos.map((i) => (
                   <option key={i.id} value={i.id}>
-                    {i.nombre}
+                    {nombreInsumo(i)}
                   </option>
                 ))}
               </select>

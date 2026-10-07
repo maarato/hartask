@@ -4,8 +4,11 @@ import { revalidatePath } from 'next/cache';
 import {
   actualizarInsumo,
   borrarInsumo,
+  borrarPuntoTemp,
   crearInsumo,
   crearInsumosBasicos,
+  guardarPuntoTemp,
+  guardarUso,
   type DatosInsumo
 } from '@/lib/micho/costos';
 
@@ -29,6 +32,7 @@ function datos(formData: FormData): DatosInsumo | null {
   if (!nombre || !unidad) return null;
   return {
     nombre,
+    marca: text(formData, 'marca'),
     unidad,
     tipo: text(formData, 'tipo'),
     precioCompra: numero(formData, 'precio_compra'),
@@ -76,5 +80,29 @@ export async function borrarInsumoAction(formData: FormData): Promise<void> {
 
 export async function crearBasicosAction(): Promise<void> {
   crearInsumosBasicos();
+  refrescar();
+}
+
+/** Bed temperature and usage notes; blank clears them. */
+export async function guardarUsoAction(formData: FormData): Promise<void> {
+  const id = Number(text(formData, 'id'));
+  if (!id) return;
+  guardarUso(id, { tempCama: numero(formData, 'temp_cama'), uso: text(formData, 'uso') });
+  refrescar();
+}
+
+/** A tested speed (mm/s) → nozzle temperature (°C). */
+export async function puntoTempAction(formData: FormData): Promise<void> {
+  const id = Number(text(formData, 'id'));
+  const velocidad = numero(formData, 'velocidad');
+  const boquilla = numero(formData, 'boquilla');
+  if (!id || !velocidad || !boquilla) return;
+  guardarPuntoTemp(id, velocidad, boquilla);
+  refrescar();
+}
+
+export async function borrarPuntoTempAction(formData: FormData): Promise<void> {
+  const id = Number(text(formData, 'punto_id'));
+  if (id) borrarPuntoTemp(id);
   refrescar();
 }

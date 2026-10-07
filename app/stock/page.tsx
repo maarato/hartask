@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Color, ListaColores } from '@/components/color';
 import { listarProductos } from '@/lib/micho/catalogo';
-import { cantidad, listarInsumos } from '@/lib/micho/costos';
+import { cantidad, listarInsumos, nombreInsumo } from '@/lib/micho/costos';
 import { listarStockMateriales, listarStockProductos, movimientos } from '@/lib/micho/stock';
 import {
   fabricarAction,
@@ -226,7 +226,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
               </option>
               {insumosConStock.map((i) => (
                 <option key={i.id} value={i.id}>
-                  {i.nombre} ({i.unidad})
+                  {nombreInsumo(i)} ({i.unidad})
                 </option>
               ))}
             </select>

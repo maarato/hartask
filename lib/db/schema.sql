@@ -197,7 +197,9 @@ CREATE TABLE IF NOT EXISTS micho_product_tasks (
 -- se calcula de aquí; precio NULL = todavía sin precio.
 CREATE TABLE IF NOT EXISTS micho_insumos (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  nombre TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  nombre TEXT NOT NULL COLLATE NOCASE,
+  -- '' = sin marca. Con la marca, "PETG" de Jayo y de Esun son dos insumos.
+  marca TEXT NOT NULL DEFAULT '' COLLATE NOCASE,
   tipo TEXT NOT NULL DEFAULT 'Material',
   unidad TEXT NOT NULL,
   precio REAL,
@@ -205,8 +207,13 @@ CREATE TABLE IF NOT EXISTS micho_insumos (
   -- 1000 g. precio (por unidad) se calcula de estos dos.
   precio_compra REAL,
   presentacion REAL NOT NULL DEFAULT 1,
+  -- Uso: temperatura de cama (°C) y notas (secado, ventilador...). La de
+  -- boquilla depende de la velocidad: micho_insumo_temperaturas.
+  temp_cama REAL,
+  uso TEXT,
   notas TEXT,
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(nombre, marca)
 );
 
 CREATE TABLE IF NOT EXISTS micho_producto_insumos (
@@ -330,4 +337,14 @@ CREATE TABLE IF NOT EXISTS micho_precios (
 CREATE TABLE IF NOT EXISTS micho_config (
   clave TEXT PRIMARY KEY,
   valor TEXT
+);
+
+-- Temperatura de boquilla probada a cada velocidad (mm/s) para un material.
+-- Con dos o más puntos se estima la de cualquier otra velocidad en línea recta.
+CREATE TABLE IF NOT EXISTS micho_insumo_temperaturas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  insumo_id INTEGER NOT NULL REFERENCES micho_insumos(id) ON DELETE CASCADE,
+  velocidad REAL NOT NULL,
+  boquilla REAL NOT NULL,
+  UNIQUE(insumo_id, velocidad)
 );

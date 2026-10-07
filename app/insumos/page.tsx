@@ -1,5 +1,25 @@
-import { INSUMOS_BASICOS, insumosConStock, listarInsumos, pesos, TIPOS_INSUMO, usosPorInsumo } from '@/lib/micho/costos';
-import { actualizarInsumoAction, borrarInsumoAction, crearBasicosAction, crearInsumoAction } from './actions';
+import {
+  cantidad,
+  INSUMOS_BASICOS,
+  insumosConStock,
+  listarInsumos,
+  nombreInsumo,
+  pesos,
+  TIPOS_INSUMO,
+  resumenUso,
+  todosLosPuntosTemp,
+  usosPorInsumo
+} from '@/lib/micho/costos';
+import { EstimadorTemp } from '@/components/estimador-temp';
+import {
+  actualizarInsumoAction,
+  borrarInsumoAction,
+  borrarPuntoTempAction,
+  crearBasicosAction,
+  crearInsumoAction,
+  guardarUsoAction,
+  puntoTempAction
+} from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,6 +85,7 @@ export default function InsumosPage() {
   const insumos = listarInsumos();
   const usos = usosPorInsumo();
   const conStock = insumosConStock();
+  const puntosPorInsumo = todosLosPuntosTemp();
   const sinPrecio = insumos.filter((i) => i.precio === null).length;
 
   return (
@@ -89,32 +110,102 @@ export default function InsumosPage() {
         </article>
       ) : (
         <div className="stack">
-          {insumos.map((i) => (
-            <form key={i.id} action={actualizarInsumoAction} className="card row insumo" style={{ margin: 0 }}>
-              <input type="hidden" name="id" value={i.id} />
-              <input name="nombre" defaultValue={i.nombre} aria-label="Nombre" required style={{ flex: '1 1 160px' }} />
-              <TipoSelect valor={i.tipo} />
-              <Compra precioCompra={i.precio_compra} presentacion={i.presentacion} unidad={i.unidad} />
-              <input name="notas" defaultValue={i.notas ?? ''} placeholder="Notas (proveedor, presentación…)" />
-              <button type="submit">Guardar</button>
-              <span className="small precio-unitario" style={{ whiteSpace: 'nowrap' }}>
-                {i.precio !== null ? `= ${pesoUnitario(i.precio)} / ${i.unidad}` : <span className="blocked">sin precio</span>}
-                {usos.get(i.id) ? ` · en ${usos.get(i.id)} producto${usos.get(i.id) === 1 ? '' : 's'}` : ''}
-              </span>
-              {!usos.get(i.id) && !conStock.has(i.id) ? (
-                <button type="submit" formAction={borrarInsumoAction} className="mini" aria-label={`Borrar ${i.nombre}`}>
-                  Borrar
-                </button>
-              ) : null}
-            </form>
-          ))}
+          {insumos.map((i) => {
+            const puntos = puntosPorInsumo.get(i.id) ?? [];
+            const resumen = resumenUso(i, puntos);
+            return (
+              <article key={i.id} className="card stack insumo-card">
+                <form action={actualizarInsumoAction} className="row insumo" style={{ margin: 0 }}>
+                  <input type="hidden" name="id" value={i.id} />
+                  <input name="nombre" defaultValue={i.nombre} aria-label="Nombre" required style={{ flex: '1 1 120px' }} />
+                  <input name="marca" defaultValue={i.marca} placeholder="Marca" aria-label="Marca" style={{ flex: '0 1 120px' }} />
+                  <TipoSelect valor={i.tipo} />
+                  <Compra precioCompra={i.precio_compra} presentacion={i.presentacion} unidad={i.unidad} />
+                  <input name="notas" defaultValue={i.notas ?? ''} placeholder="Notas (proveedor, presentación…)" />
+                  <button type="submit">Guardar</button>
+                  <span className="small precio-unitario" style={{ whiteSpace: 'nowrap' }}>
+                    {i.precio !== null ? `= ${pesoUnitario(i.precio)} / ${i.unidad}` : <span className="blocked">sin precio</span>}
+                    {usos.get(i.id) ? ` · en ${usos.get(i.id)} producto${usos.get(i.id) === 1 ? '' : 's'}` : ''}
+                  </span>
+                  {!usos.get(i.id) && !conStock.has(i.id) ? (
+                    <button type="submit" formAction={borrarInsumoAction} className="mini" aria-label={`Borrar ${nombreInsumo(i)}`}>
+                      Borrar
+                    </button>
+                  ) : null}
+                </form>
+
+                {i.tipo === 'Material' ? (
+                  <details className="uso">
+                    <summary className="small">
+                      <span className="muted">Uso</span>
+                      {resumen ? <span className="uso-resumen"> · {resumen}</span> : null}
+                    </summary>
+                    <div className="uso-cuerpo">
+                      <div className="stack" style={{ gap: 8 }}>
+                        <h3 className="small uso-titulo">Boquilla por velocidad</h3>
+                        {puntos.length ? (
+                          <ul className="puntos">
+                            {puntos.map((pt) => (
+                              <li key={pt.id}>
+                                <span>
+                                  {cantidad(pt.velocidad)} mm/s → <strong>{cantidad(pt.boquilla)} °C</strong>
+                                </span>
+                                <form action={borrarPuntoTempAction}>
+                                  <input type="hidden" name="punto_id" value={pt.id} />
+                                  <button type="submit" className="mini" aria-label={`Quitar ${pt.velocidad} mm/s`}>
+                                    ×
+                                  </button>
+                                </form>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                        <form action={puntoTempAction} className="row" style={{ margin: 0 }}>
+                          <input type="hidden" name="id" value={i.id} />
+                          <label className="row campo-num">
+                            <input name="velocidad" inputMode="decimal" placeholder="150" aria-label="Velocidad" required />
+                            <span className="muted small">mm/s →</span>
+                            <input name="boquilla" inputMode="decimal" placeholder="250" aria-label="Temperatura de boquilla" required />
+                            <span className="muted small">°C</span>
+                          </label>
+                          <button type="submit" className="mini">
+                            Agregar
+                          </button>
+                        </form>
+                        <EstimadorTemp puntos={puntos.map(({ velocidad, boquilla }) => ({ velocidad, boquilla }))} />
+                      </div>
+                      <form action={guardarUsoAction} className="stack" style={{ gap: 8 }}>
+                        <input type="hidden" name="id" value={i.id} />
+                        <label className="row campo-num">
+                          <span className="muted small">Cama</span>
+                          <input name="temp_cama" inputMode="decimal" defaultValue={i.temp_cama ?? ''} placeholder="?" aria-label="Temperatura de cama" />
+                          <span className="muted small">°C</span>
+                        </label>
+                        <textarea
+                          name="uso"
+                          rows={3}
+                          defaultValue={i.uso ?? ''}
+                          placeholder="Secado, ventilador, enclosure, adherencia, retracción…"
+                          aria-label="Notas de uso"
+                        />
+                        <button type="submit" className="mini" style={{ alignSelf: 'flex-start' }}>
+                          Guardar uso
+                        </button>
+                      </form>
+                    </div>
+                  </details>
+                ) : null}
+              </article>
+            );
+          })}
         </div>
       )}
 
       <section className="card stack">
         <h2>Nuevo insumo</h2>
         <form action={crearInsumoAction} className="row form" style={{ marginTop: 0 }}>
-          <input name="nombre" placeholder="Nombre (ej. PLA negro Esun, MDF 6 mm, caja kraft)" required />
+          <input name="nombre" placeholder="Material (ej. PETG, PLA, MDF 6 mm, caja kraft)" required />
+          <input name="marca" placeholder="Marca (ej. Jayo)" style={{ flex: '0 1 140px' }} />
           <TipoSelect />
           <Compra />
           <button type="submit">Agregar</button>

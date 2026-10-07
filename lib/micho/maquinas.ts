@@ -1,5 +1,6 @@
 import { getDb } from '@/lib/db/client';
 import { slugDe } from '@/lib/micho/catalogo';
+import { NOMBRE_INSUMO_SQL } from '@/lib/micho/costos';
 
 /**
  * The workshop's machines. What a machine is (model, nickname, type, how many
@@ -188,7 +189,7 @@ export function guardarDetalles(maquinaId: number, filas: { clave: string; valor
 export function consumiblesDe(maquina: Pick<Maquina, 'id' | 'ranuras'>): Consumible[] {
   const filas = getDb()
     .prepare(
-      `SELECT c.ranura, c.insumo_id, i.nombre AS insumo, i.unidad, c.color, c.nota
+      `SELECT c.ranura, c.insumo_id, ${NOMBRE_INSUMO_SQL} AS insumo, i.unidad, c.color, c.nota
          FROM micho_maquina_consumibles c LEFT JOIN micho_insumos i ON i.id = c.insumo_id
         WHERE c.maquina_id = ?`
     )

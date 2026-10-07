@@ -406,3 +406,23 @@ button.mini { padding:3px 9px; font-size:12px; border-radius:7px; }
 .margen-ok { color:#82dcb2; }
 .margen-bajo { color:#f0c274; }
 .badge.precio { border-color:#8a5cd6; color:#c5a8f5; }
+
+/* Insumos: marca y uso */
+.insumo-card { padding:10px 12px; gap:8px; }
+.insumo-card .insumo { padding:0; }
+.uso summary { padding:2px 0; }
+.uso-resumen { color:#c3cad4; }
+.uso-cuerpo {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px;
+  margin-top:10px; padding-top:10px; border-top:1px solid #1e242c;
+}
+.uso-titulo { margin:0; color:#9aa4b2; font-weight:600; }
+.puntos { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:4px; }
+.puntos li { display:flex; align-items:center; gap:10px; }
+.puntos form { margin:0; }
+.temp-estimada { color:#f0c274; min-width:56px; }
+.temps-ref { display:flex; flex-wrap:wrap; gap:6px; font-size:12px; }
+.temp-ref { padding:2px 8px; border-radius:999px; border:1px solid #2a2f37; }
+.temp-medido { border-color:#2f9e6b; }
+.temp-extrapolado { border-style:dashed; }
+.temp-ref-maquina { color:#f0c274; }

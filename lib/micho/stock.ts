@@ -1,5 +1,5 @@
 import { getDb } from '@/lib/db/client';
-import { costeoDe } from '@/lib/micho/costos';
+import { costeoDe, NOMBRE_INSUMO_SQL } from '@/lib/micho/costos';
 
 /**
  * What is on the shelf: materials by supply and colour, finished products by
@@ -50,9 +50,9 @@ function limpio(s: string | null | undefined): string {
 export function listarStockMateriales(): StockMaterial[] {
   const filas = getDb()
     .prepare(
-      `SELECT s.id, s.insumo_id, i.nombre AS insumo, i.tipo, i.unidad, s.color, s.cantidad, s.minimo
+      `SELECT s.id, s.insumo_id, ${NOMBRE_INSUMO_SQL} AS insumo, i.tipo, i.unidad, s.color, s.cantidad, s.minimo
          FROM micho_stock_materiales s JOIN micho_insumos i ON i.id = s.insumo_id
-        ORDER BY i.nombre COLLATE NOCASE, s.color COLLATE NOCASE`
+        ORDER BY i.nombre COLLATE NOCASE, i.marca COLLATE NOCASE, s.color COLLATE NOCASE`
     )
     .all() as Omit<StockMaterial, 'bajo'>[];
   return filas.map((f) => ({ ...f, bajo: f.cantidad < 0 || (f.minimo !== null && f.cantidad <= f.minimo) }));
@@ -200,7 +200,7 @@ export function movimientos(filtro: { slug?: string; limite?: number } = {}): Mo
   const params: unknown[] = filtro.slug ? [filtro.slug] : [];
   return getDb()
     .prepare(
-      `SELECT m.*, i.nombre AS insumo, i.unidad FROM micho_movimientos m
+      `SELECT m.*, ${NOMBRE_INSUMO_SQL} AS insumo, i.unidad FROM micho_movimientos m
          LEFT JOIN micho_insumos i ON i.id = m.insumo_id
        ${where} ORDER BY m.id DESC LIMIT ?`
     )

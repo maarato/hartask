@@ -4,6 +4,7 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { databasePath } from '@/lib/hartask/config';
 import { uuidForName } from '@/lib/hartask/sync/uuid';
+import { migrarMicho } from '@/lib/micho/migraciones';
 
 type DbHandle = Database.Database;
 
@@ -49,7 +50,11 @@ const ADDED_COLUMNS: { table: string; column: string; definition: string }[] = [
   // Micho Store: what a supply is bought as ($350 for a 1000 g spool), from
   // which the per-unit price is derived.
   { table: 'micho_insumos', column: 'precio_compra', definition: 'REAL' },
-  { table: 'micho_insumos', column: 'presentacion', definition: 'REAL NOT NULL DEFAULT 1' }
+  { table: 'micho_insumos', column: 'presentacion', definition: 'REAL NOT NULL DEFAULT 1' },
+  // Micho Store: brand and usage of a material.
+  { table: 'micho_insumos', column: 'marca', definition: "TEXT NOT NULL DEFAULT '' COLLATE NOCASE" },
+  { table: 'micho_insumos', column: 'temp_cama', definition: 'REAL' },
+  { table: 'micho_insumos', column: 'uso', definition: 'TEXT' }
 ];
 
 /** Tables whose rows are identified across origins by a uuid. */
@@ -154,6 +159,8 @@ function open(): DbHandle {
   db.exec(readFileSync(resolve(process.cwd(), 'lib/db/schema.sql'), 'utf8'));
 
   addColumns(db);
+  // Micho Store's non-additive changes; each is a no-op once applied.
+  migrarMicho(db);
   backfillIdentity(db);
   realignContextIdentity(db);
   // After the backfill, so the index never has to reject pre-existing nulls.

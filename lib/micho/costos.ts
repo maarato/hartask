@@ -13,6 +13,8 @@ export type TipoInsumo = (typeof TIPOS_INSUMO)[number];
 export type Insumo = {
   id: number;
   nombre: string;
+  /** '' when the supply has no brand. */
+  marca: string;
   tipo: TipoInsumo;
   unidad: string;
   /** MXN per unit, derived from precio_compra / presentacion; null while unknown. */
@@ -21,6 +23,10 @@ export type Insumo = {
   precio_compra: number | null;
   /** Units in one purchase, e.g. 1000 (g) for a 1 kg spool. */
   presentacion: number;
+  /** Bed temperature, °C. */
+  temp_cama: number | null;
+  /** Usage notes: drying, fan, enclosure... */
+  uso: string | null;
   notas: string | null;
   updated_at: string;
 };
@@ -65,13 +71,14 @@ export function listarInsumos(): Insumo[] {
   return getDb()
     .prepare(
       `SELECT * FROM micho_insumos
-        ORDER BY CASE tipo WHEN 'Material' THEN 0 WHEN 'Consumible' THEN 1 WHEN 'Componente' THEN 2 WHEN 'Empaque' THEN 3 WHEN 'Máquina' THEN 4 ELSE 5 END, nombre`
+        ORDER BY CASE tipo WHEN 'Material' THEN 0 WHEN 'Consumible' THEN 1 WHEN 'Componente' THEN 2 WHEN 'Empaque' THEN 3 WHEN 'Máquina' THEN 4 ELSE 5 END, nombre, marca`
     )
     .all() as Insumo[];
 }
 
 export type DatosInsumo = {
   nombre: string;
+  marca?: string | null;
   tipo?: string | null;
   unidad: string;
   /** Price of one purchase ($350 for the spool). */
@@ -100,10 +107,19 @@ export function crearInsumo(datos: DatosInsumo): Insumo {
   const p = precios(datos);
   const info = db
     .prepare(
-      `INSERT INTO micho_insumos (nombre, tipo, unidad, precio, precio_compra, presentacion, notas)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO micho_insumos (nombre, marca, tipo, unidad, precio, precio_compra, presentacion, notas)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(datos.nombre, tipoValido(datos.tipo), datos.unidad, p.unitario, p.compra, p.presentacion, datos.notas ?? null);
+    .run(
+      datos.nombre,
+      datos.marca?.trim() ?? '',
+      tipoValido(datos.tipo),
+      datos.unidad,
+      p.unitario,
+      p.compra,
+      p.presentacion,
+      datos.notas ?? null
+    );
   return db.prepare(`SELECT * FROM micho_insumos WHERE id = ?`).get(info.lastInsertRowid) as Insumo;
 }
 
@@ -111,10 +127,20 @@ export function actualizarInsumo(id: number, datos: DatosInsumo): void {
   const p = precios(datos);
   getDb()
     .prepare(
-      `UPDATE micho_insumos SET nombre = ?, tipo = ?, unidad = ?, precio = ?, precio_compra = ?, presentacion = ?,
-              notas = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+      `UPDATE micho_insumos SET nombre = ?, marca = ?, tipo = ?, unidad = ?, precio = ?, precio_compra = ?,
+              presentacion = ?, notas = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
     )
-    .run(datos.nombre, tipoValido(datos.tipo), datos.unidad, p.unitario, p.compra, p.presentacion, datos.notas ?? null, id);
+    .run(
+      datos.nombre,
+      datos.marca?.trim() ?? '',
+      tipoValido(datos.tipo),
+      datos.unidad,
+      p.unitario,
+      p.compra,
+      p.presentacion,
+      datos.notas ?? null,
+      id
+    );
 }
 
 /** How many product lines use each supply, so a used one cannot be deleted from under them. */
@@ -148,7 +174,7 @@ export function borrarInsumo(id: number): boolean {
 export function crearInsumosBasicos(): void {
   const db = getDb();
   const insertar = db.prepare(
-    `INSERT INTO micho_insumos (nombre, tipo, unidad, presentacion) VALUES (?, ?, ?, ?) ON CONFLICT(nombre) DO NOTHING`
+    `INSERT INTO micho_insumos (nombre, tipo, unidad, presentacion) VALUES (?, ?, ?, ?) ON CONFLICT(nombre, marca) DO NOTHING`
   );
   db.transaction(() => {
     for (const b of INSUMOS_BASICOS) insertar.run(b.nombre, b.tipo, b.unidad, b.presentacion);
@@ -168,9 +194,17 @@ export function borrarLinea(id: number): void {
   getDb().prepare(`DELETE FROM micho_producto_insumos WHERE id = ?`).run(id);
 }
 
+/** "PETG Jayo": a supply's name with its brand, for any query that aliases micho_insumos as i. */
+export const NOMBRE_INSUMO_SQL = `(i.nombre || CASE WHEN i.marca <> '' THEN ' ' || i.marca ELSE '' END)`;
+
+/** Same as NOMBRE_INSUMO_SQL, for a supply already loaded. */
+export function nombreInsumo(i: Pick<Insumo, 'nombre' | 'marca'>): string {
+  return i.marca ? `${i.nombre} ${i.marca}` : i.nombre;
+}
+
 const SELECT_LINEAS = `
   SELECT l.id, l.slug, l.insumo_id, l.cantidad, l.color, l.nota,
-         i.nombre AS insumo, i.tipo, i.unidad, i.precio
+         ${NOMBRE_INSUMO_SQL} AS insumo, i.tipo, i.unidad, i.precio
     FROM micho_producto_insumos l JOIN micho_insumos i ON i.id = l.insumo_id`;
 
 function armar(filas: Omit<Linea, 'subtotal'>[]): Costeo {
@@ -215,3 +249,62 @@ export function resumenMateriales(costeo: Costeo): string {
     .map((l) => [l.insumo, `${cantidad(l.cantidad)} ${l.unidad}`, l.color].filter(Boolean).join(' '))
     .join(' · ');
 }
+
+// ---------------------------------------------------------------------------
+// Usage: bed temperature, notes and nozzle temperature by speed
+// ---------------------------------------------------------------------------
+
+export type PuntoTemp = { id: number; insumo_id: number; velocidad: number; boquilla: number };
+
+export function guardarUso(id: number, datos: { tempCama: number | null; uso: string | null }): void {
+  getDb()
+    .prepare(`UPDATE micho_insumos SET temp_cama = ?, uso = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+    .run(datos.tempCama, datos.uso, id);
+}
+
+export function puntosTemp(insumoId: number): PuntoTemp[] {
+  return getDb()
+    .prepare(`SELECT * FROM micho_insumo_temperaturas WHERE insumo_id = ? ORDER BY velocidad`)
+    .all(insumoId) as PuntoTemp[];
+}
+
+/** insumo_id → its points, for pages that list every supply. */
+export function todosLosPuntosTemp(): Map<number, PuntoTemp[]> {
+  const filas = getDb()
+    .prepare(`SELECT * FROM micho_insumo_temperaturas ORDER BY insumo_id, velocidad`)
+    .all() as PuntoTemp[];
+  const out = new Map<number, PuntoTemp[]>();
+  for (const f of filas) out.set(f.insumo_id, [...(out.get(f.insumo_id) ?? []), f]);
+  return out;
+}
+
+/** Adds a tested speed → nozzle temperature; the same speed again replaces its temperature. */
+export function guardarPuntoTemp(insumoId: number, velocidad: number, boquilla: number): void {
+  getDb()
+    .prepare(
+      `INSERT INTO micho_insumo_temperaturas (insumo_id, velocidad, boquilla) VALUES (?, ?, ?)
+       ON CONFLICT(insumo_id, velocidad) DO UPDATE SET boquilla = excluded.boquilla`
+    )
+    .run(insumoId, velocidad, boquilla);
+}
+
+export function borrarPuntoTemp(id: number): void {
+  getDb().prepare(`DELETE FROM micho_insumo_temperaturas WHERE id = ?`).run(id);
+}
+
+/** One line for the collapsed "Uso": "250 °C @ 150 mm/s · cama 80 °C". */
+export function resumenUso(i: Pick<Insumo, 'temp_cama'>, puntos: Pick<PuntoTemp, 'velocidad' | 'boquilla'>[]): string {
+  const partes: string[] = [];
+  if (puntos.length === 1) partes.push(`${cantidad(puntos[0].boquilla)} °C @ ${cantidad(puntos[0].velocidad)} mm/s`);
+  if (puntos.length > 1) {
+    const min = Math.min(...puntos.map((p) => p.boquilla));
+    const max = Math.max(...puntos.map((p) => p.boquilla));
+    partes.push(`${cantidad(min)}–${cantidad(max)} °C · ${puntos.length} velocidades`);
+  }
+  if (i.temp_cama !== null) partes.push(`cama ${cantidad(i.temp_cama)} °C`);
+  return partes.join(' · ');
+}
+
+
+// The estimator has no database access, so the browser can use it too.
+export { estimarTemp, type Estimacion } from '@/lib/micho/temperatura';
