@@ -8,6 +8,7 @@ import { listarProductos } from '@/lib/micho/catalogo';
 import { asegurarFicha, FICHA_MAQUINA } from '@/lib/micho/fichas';
 import {
   actualizarMaquina,
+  borrarMaquina,
   borrarTrabajo,
   cambiarEstado,
   cargarConsumible,
@@ -78,6 +79,15 @@ export async function editarMaquinaAction(formData: FormData): Promise<void> {
     ranuras: entero(formData, 'ranuras')
   });
   refrescar();
+}
+
+/** Needs the confirmation box ticked: there is no undo. */
+export async function borrarMaquinaAction(formData: FormData): Promise<void> {
+  const m = maquina(formData);
+  if (formData.get('confirmar') !== 'on') return;
+  borrarMaquina(m.id);
+  refrescar();
+  redirect('/maquinas');
 }
 
 export async function estadoMaquinaAction(formData: FormData): Promise<void> {

@@ -394,3 +394,5 @@ button.mini { padding:3px 9px; font-size:12px; border-radius:7px; }
 .detalle-fila { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,3fr); gap:6px; }
 .detalle-fila input:first-child { color:#9aa4b2; }
 @media (max-width: 620px) { .tarea-acciones { flex-wrap:wrap; } }
+.borrar-maquina { border-top:1px solid #1e242c; padding-top:12px; }
+.borrar-maquina button { border-color:#5c2d2a; color:#f2938c; }

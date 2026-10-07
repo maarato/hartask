@@ -18,6 +18,7 @@ import {
 } from '@/lib/micho/maquinas';
 import {
   agregarTareaMaquinaAction,
+  borrarMaquinaAction,
   bitacoraMaquinaAction,
   consumibleAction,
   editarMaquinaAction,
@@ -404,6 +405,18 @@ export default async function MaquinaPage({ params }: { params: Promise<{ slug: 
           </label>
           <button type="submit">Guardar</button>
         </form>
+        <form action={borrarMaquinaAction} className="row form borrar-maquina">
+          <input type="hidden" name="slug" value={m.slug} />
+          <label className="row checkbox small" style={{ margin: 0, alignItems: 'center' }}>
+            <input type="checkbox" name="confirmar" required /> Sí, borrar esta máquina con sus detalles y su cola
+          </label>
+          <button type="submit" className="mini">
+            Borrar máquina
+          </button>
+        </form>
+        {ficha ? (
+          <span className="muted small">Su ficha ({ficha.tarea.public_id}) y sus tareas se quedan en el tablero.</span>
+        ) : null}
       </details>
     </div>
   );

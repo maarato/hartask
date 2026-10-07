@@ -330,3 +330,21 @@ export function nombreTrabajo(t: Trabajo, productos: Map<string | null, string>)
   const producto = t.producto_slug ? productos.get(t.producto_slug) ?? t.producto_slug : null;
   return [producto, t.descripcion].filter(Boolean).join(' — ');
 }
+
+/**
+ * Deletes a machine with its details, loaded consumables and queue. Its ficha
+ * task, if it has one, stays on the board — tasks are not deleted from here —
+ * but loses the link, so a new machine with the same slug starts clean.
+ */
+export function borrarMaquina(id: number): void {
+  const db = getDb();
+  db.transaction(() => {
+    const m = db.prepare(`SELECT slug FROM micho_maquinas WHERE id = ?`).get(id) as { slug: string } | undefined;
+    if (!m) return;
+    db.prepare(`DELETE FROM micho_cola WHERE maquina_id = ?`).run(id);
+    db.prepare(`DELETE FROM micho_maquina_consumibles WHERE maquina_id = ?`).run(id);
+    db.prepare(`DELETE FROM micho_maquina_detalles WHERE maquina_id = ?`).run(id);
+    db.prepare(`DELETE FROM micho_product_tasks WHERE slug = ?`).run(claveFicha(m.slug));
+    db.prepare(`DELETE FROM micho_maquinas WHERE id = ?`).run(id);
+  })();
+}

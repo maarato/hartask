@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { getTask } from '@/lib/hartask/repositories/tasks';
 import { agregarLinea, borrarInsumo, crearInsumo } from '@/lib/micho/costos';
 import { asegurarFicha, FICHA_MAQUINA, obtenerFicha } from '@/lib/micho/fichas';
 import {
   actualizarMaquina,
+  borrarMaquina,
   cambiarEstado,
   cargarConsumible,
   claveFicha,
@@ -102,5 +104,19 @@ describe('máquinas', () => {
     expect(ficha.parent_id).not.toBeNull();
     expect(obtenerFicha(claveFicha(m.slug))?.tarea.id).toBe(ficha.id);
     expect(obtenerFicha(m.slug)).toBeNull();
+  });
+});
+
+describe('borrar máquina', () => {
+  it('quita la máquina, su cola y su vínculo, pero deja la ficha en el tablero', () => {
+    const m = crearMaquina({ nombre: 'MiniLaser', tipo: 'Láser diodo' });
+    encolar(m.id, { descripcion: 'x' });
+    const ficha = asegurarFicha(claveFicha(m.slug), m.nombre, null, FICHA_MAQUINA);
+    borrarMaquina(m.id);
+    expect(obtenerMaquina(m.slug)).toBeNull();
+    expect(colaDe(m.id, true)).toEqual([]);
+    expect(obtenerFicha(claveFicha(m.slug))).toBeNull();
+    expect(getTask(ficha.id)).not.toBeNull();
+    expect(crearMaquina({ nombre: 'MiniLaser', tipo: 'Láser diodo' }).slug).toBe('minilaser');
   });
 });
