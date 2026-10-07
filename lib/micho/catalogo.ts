@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { extname, join, relative, resolve, sep } from 'node:path';
+import { extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { projectRootPath } from '@/lib/hartask/config';
 
 /**
@@ -27,8 +27,28 @@ export type Producto = {
   carpeta: string | null;
   canales: string | null;
   notas: string | null;
-  /** Project-relative path of the first photo found, for /api/micho/foto. */
+  /** Project-relative path of the first photo found, for /api/micho/archivo. */
   foto: string | null;
+  /** URL segment for /productos/[slug], derived from the folder; null without one. */
+  slug: string | null;
+};
+
+export type Archivo = {
+  /** Project-relative, forward slashes: what /api/micho/archivo takes. */
+  ruta: string;
+  nombre: string;
+  ext: string;
+  bytes: number;
+  /** Subfolder inside the product folder, '' for the top level. */
+  subcarpeta: string;
+};
+
+export type DetalleProducto = Producto & {
+  existe: boolean;
+  fotos: Archivo[];
+  archivos: Archivo[];
+  /** True when the walk stopped at MAX_ARCHIVOS. */
+  truncado: boolean;
 };
 
 export type Parametro = {
@@ -91,16 +111,35 @@ function tablas(md: string): Tabla[] {
   return out;
 }
 
+/** Only the state folders hold products; hartask/, Taller/ and _docs/ are never served. */
+const CARPETAS_DE_PRODUCTO = ['1 Listos', '2 Por validar', '3 Prototipos', '4 Ideas'];
+
 /**
- * Resolves a project-relative path and refuses anything that escapes the
- * project root, so a crafted query cannot read the rest of the disk.
+ * Resolves a project-relative path inside one of the product folders and
+ * refuses anything else, so a crafted query cannot read the rest of the disk
+ * — or the Hartask database sitting next to the products.
  */
-export function dentroDelProyecto(rel: string): string | null {
+export function rutaDeProducto(rel: string): string | null {
   const root = projectRootPath();
   const abs = resolve(root, rel);
   const r = relative(root, abs);
-  if (!r || r.startsWith('..') || r.includes(`..${sep}`)) return null;
-  return abs;
+  if (!r || r.startsWith('..') || isAbsolute(r)) return null;
+  const primero = r.split(sep)[0];
+  return CARPETAS_DE_PRODUCTO.includes(primero) ? abs : null;
+}
+
+function aRelativa(abs: string): string {
+  return relative(projectRootPath(), abs).split(sep).join('/');
+}
+
+/** '1 Listos/Laser/Huacal 12x12x7cm' → '1-listos-laser-huacal-12x12x7cm'. */
+export function slugDe(carpeta: string): string {
+  return carpeta
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 }
 
 /**
@@ -108,7 +147,7 @@ export function dentroDelProyecto(rel: string): string | null {
  * one level deep — the disk is slow, so no recursive walk.
  */
 function primeraFoto(carpeta: string): string | null {
-  const abs = dentroDelProyecto(carpeta);
+  const abs = rutaDeProducto(carpeta);
   if (!abs || !existsSync(abs)) return null;
   for (const dir of [join(abs, 'Fotos'), abs]) {
     try {
@@ -116,7 +155,7 @@ function primeraFoto(carpeta: string): string | null {
       const img = readdirSync(dir)
         .filter((f) => IMAGENES.has(extname(f).toLowerCase()))
         .sort((a, b) => a.localeCompare(b))[0];
-      if (img) return relative(projectRootPath(), join(dir, img)).split(sep).join('/');
+      if (img) return aRelativa(join(dir, img));
     } catch {
       // A folder we cannot read just has no photo.
     }
@@ -141,7 +180,8 @@ export function listarProductos(): Producto[] {
         carpeta,
         canales: fila['Canales'] && !['?', '—', '-'].includes(fila['Canales']) ? fila['Canales'] : null,
         notas: fila['Notas'] || fila['Qué falta'] || null,
-        foto: carpeta ? primeraFoto(carpeta) : null
+        foto: carpeta ? primeraFoto(carpeta) : null,
+        slug: carpeta ? slugDe(carpeta) : null
       });
     }
   }
@@ -162,4 +202,56 @@ export function listarParametros(): Parametro[] {
         estado: f['Estado'] ?? ''
       }))
   );
+}
+
+/** Product folders are small, but a stray library inside one must not hang the page. */
+const MAX_ARCHIVOS = 400;
+const MAX_PROFUNDIDAD = 3;
+
+function recorrer(base: string, dir: string, nivel: number, out: Archivo[]): boolean {
+  let entradas;
+  try {
+    entradas = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+  entradas.sort((a, b) => a.name.localeCompare(b.name));
+  for (const e of entradas) {
+    if (out.length >= MAX_ARCHIVOS) return true;
+    const abs = join(dir, e.name);
+    if (e.isDirectory()) {
+      if (nivel < MAX_PROFUNDIDAD && recorrer(base, abs, nivel + 1, out)) return true;
+    } else if (e.isFile()) {
+      let bytes = 0;
+      try {
+        bytes = statSync(abs).size;
+      } catch {
+        // Size is cosmetic.
+      }
+      out.push({
+        ruta: aRelativa(abs),
+        nombre: e.name,
+        ext: extname(e.name).toLowerCase(),
+        bytes,
+        subcarpeta: relative(base, dir).split(sep).join('/')
+      });
+    }
+  }
+  return false;
+}
+
+export function detalleProducto(slug: string): DetalleProducto | null {
+  const producto = listarProductos().find((p) => p.slug === slug);
+  if (!producto?.carpeta) return null;
+  const abs = rutaDeProducto(producto.carpeta);
+  const existe = !!abs && existsSync(abs);
+  const todos: Archivo[] = [];
+  const truncado = existe ? recorrer(abs!, abs!, 1, todos) : false;
+  return {
+    ...producto,
+    existe,
+    fotos: todos.filter((a) => IMAGENES.has(a.ext)),
+    archivos: todos.filter((a) => !IMAGENES.has(a.ext)),
+    truncado
+  };
 }

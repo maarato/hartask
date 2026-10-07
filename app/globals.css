@@ -222,3 +222,15 @@ summary { cursor:pointer; }
 .tabla th, .tabla td { text-align:left; padding:8px 12px; border-bottom:1px solid #1e242c; vertical-align:top; }
 .tabla th { color:#9aa4b2; font-weight:600; }
 .tabla tr:last-child td { border-bottom:0; }
+.producto-link { transition:border-color .12s ease; }
+.producto-link:hover { border-color:#3d6be0; }
+.badge[data-estado="Listo"] { border-color:#2f9e6b; color:#82dcb2; }
+.badge[data-estado="Por validar"] { border-color:#c98a2b; color:#f0c274; }
+.badge[data-estado="Prototipo"] { border-color:#8a5cd6; color:#c5a8f5; }
+.galeria { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); }
+.galeria img {
+  width:100%; aspect-ratio:1; object-fit:cover; border-radius:10px;
+  border:1px solid #2a2f37; background:#0e1216; display:block;
+}
+.galeria a:hover img { border-color:#3d6be0; }
+.tabla .subcarpeta { padding-top:14px; font-family:ui-monospace, monospace; }

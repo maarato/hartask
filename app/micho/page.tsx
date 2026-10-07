@@ -2,34 +2,12 @@ import Link from 'next/link';
 import { getLatestHandoff } from '@/lib/hartask/repositories/handoff';
 import { listTasks } from '@/lib/hartask/repositories/tasks';
 import type { Task } from '@/lib/hartask/types';
-import { ESTADOS, listarParametros, listarProductos, type Producto } from '@/lib/micho/catalogo';
+import { ProductoCard } from '@/components/producto-card';
+import { ESTADOS, listarParametros, listarProductos } from '@/lib/micho/catalogo';
 
 export const dynamic = 'force-dynamic';
 
 const PRIORIDAD: Record<number, string> = { 3: 'alta', 2: 'media', 1: 'baja' };
-
-function Tarjeta({ p }: { p: Producto }) {
-  return (
-    <article className="card producto">
-      {p.foto ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={`/api/micho/foto?ruta=${encodeURIComponent(p.foto)}`} alt={p.nombre} loading="lazy" />
-      ) : (
-        <div className="sin-foto muted small">Sin foto</div>
-      )}
-      <div className="stack producto-info">
-        <strong>{p.nombre}</strong>
-        <span className="row">
-          <span className="category">{p.tecnica}</span>
-          {p.detalle ? <span className="badge">{p.detalle}</span> : null}
-          {p.canales ? <span className="badge">{p.canales}</span> : null}
-        </span>
-        {p.notas ? <span className="muted small">{p.notas}</span> : null}
-        {p.carpeta ? <code className="small">{p.carpeta}</code> : null}
-      </div>
-    </article>
-  );
-}
 
 function Tareas({ tareas }: { tareas: Task[] }) {
   const porCategoria = new Map<string, Task[]>();
@@ -64,15 +42,9 @@ function Tareas({ tareas }: { tareas: Task[] }) {
   );
 }
 
-export default async function MichoPage({
-  searchParams
-}: {
-  searchParams: Promise<{ estado?: string }>;
-}) {
-  const { estado } = await searchParams;
+export default function MichoPage() {
   const productos = listarProductos();
-  const filtro = ESTADOS.find((e) => e === estado);
-  const visibles = filtro ? productos.filter((p) => p.estado === filtro) : productos;
+  const listos = productos.filter((p) => p.estado === 'Listo');
 
   // Root tasks with children are only area headers on this board, not work.
   const todas = listTasks({ includeClosed: false });
@@ -114,26 +86,14 @@ export default async function MichoPage({
 
       <section className="stack">
         <header className="section-head">
-          <h2>Catálogo</h2>
-          <p className="muted small">Leído de _docs/PRODUCTOS.md</p>
-        </header>
-        <nav className="row filters">
-          <Link href="/micho" className={`chip${!filtro ? ' chip-on' : ''}`}>
-            Todos
+          <h2>Listos para vender</h2>
+          <Link href="/productos" className="muted small">
+            Ver todos los productos →
           </Link>
-          {ESTADOS.map((e) => (
-            <Link
-              key={e}
-              href={`/micho?estado=${encodeURIComponent(e)}`}
-              className={`chip${filtro === e ? ' chip-on' : ''}`}
-            >
-              {e}
-            </Link>
-          ))}
-        </nav>
+        </header>
         <div className="catalogo">
-          {visibles.map((p) => (
-            <Tarjeta key={`${p.estado}-${p.nombre}`} p={p} />
+          {listos.map((p) => (
+            <ProductoCard key={p.nombre} p={p} />
           ))}
         </div>
       </section>
