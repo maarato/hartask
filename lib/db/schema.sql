@@ -201,6 +201,10 @@ CREATE TABLE IF NOT EXISTS micho_insumos (
   tipo TEXT NOT NULL DEFAULT 'Material',
   unidad TEXT NOT NULL,
   precio REAL,
+  -- Lo que se paga por la presentación y cuántas unidades trae: $350 por
+  -- 1000 g. precio (por unidad) se calcula de estos dos.
+  precio_compra REAL,
+  presentacion REAL NOT NULL DEFAULT 1,
   notas TEXT,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -249,3 +253,54 @@ CREATE TABLE IF NOT EXISTS micho_movimientos (
   nota TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Micho Store: máquinas del taller. La info, las tareas y la bitácora viven
+-- en su ficha (micho_product_tasks con slug 'maquina:<slug>').
+CREATE TABLE IF NOT EXISTS micho_maquinas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug TEXT NOT NULL UNIQUE,
+  nombre TEXT NOT NULL,
+  apodo TEXT,
+  tipo TEXT NOT NULL DEFAULT 'Impresora 3D',
+  estado TEXT NOT NULL DEFAULT 'Activa',
+  -- Consumibles que puede tener cargados a la vez: 4 con AMS, 1 normalmente.
+  ranuras INTEGER NOT NULL DEFAULT 1,
+  orden INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Detalles clave/valor: boquilla, volumen, potencia, área de trabajo...
+CREATE TABLE IF NOT EXISTS micho_maquina_detalles (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  maquina_id INTEGER NOT NULL REFERENCES micho_maquinas(id) ON DELETE CASCADE,
+  clave TEXT NOT NULL,
+  valor TEXT,
+  orden INTEGER NOT NULL DEFAULT 0
+);
+
+-- Lo que tiene cargado cada ranura ahora mismo.
+CREATE TABLE IF NOT EXISTS micho_maquina_consumibles (
+  maquina_id INTEGER NOT NULL REFERENCES micho_maquinas(id) ON DELETE CASCADE,
+  ranura INTEGER NOT NULL,
+  insumo_id INTEGER REFERENCES micho_insumos(id),
+  color TEXT,
+  nota TEXT,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (maquina_id, ranura)
+);
+
+-- Cola de trabajos de cada máquina.
+CREATE TABLE IF NOT EXISTS micho_cola (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  maquina_id INTEGER NOT NULL REFERENCES micho_maquinas(id) ON DELETE CASCADE,
+  producto_slug TEXT,
+  descripcion TEXT,
+  piezas INTEGER NOT NULL DEFAULT 1,
+  estado TEXT NOT NULL DEFAULT 'En cola' CHECK(estado IN ('En cola','En curso','Hecho','Cancelado')),
+  orden INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  started_at TEXT,
+  finished_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_micho_cola_maquina ON micho_cola(maquina_id, estado);

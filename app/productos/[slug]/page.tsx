@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Color, ListaColores } from '@/components/color';
 import { notFound } from 'next/navigation';
 import { CostoBadge, urlArchivo } from '@/components/producto-card';
 import { Markdown } from '@/components/markdown';
@@ -109,6 +110,7 @@ export default async function ProductoPage({
 
   return (
     <div className="stack sections">
+      <ListaColores />
       <Link href="/productos" className="muted small">
         ← Productos
       </Link>
@@ -280,7 +282,7 @@ export default async function ProductoPage({
               .map((v) => (
                 <li key={v.variante} className="row tarea-fila" style={{ margin: 0 }}>
                   <strong className={v.cantidad < 0 ? 'blocked' : undefined}>{v.cantidad} pz</strong>
-                  <span className="small tarea-titulo">{v.variante || 'sin variante'}</span>
+                  <span className="small tarea-titulo">{v.variante ? <Color nombre={v.variante} /> : 'sin variante'}</span>
                   <form action={salidaProductoAction} className="row mini-form tarea-acciones">
                     <input type="hidden" name="slug" value={slug} />
                     <input type="hidden" name="variante" value={v.variante} />
@@ -297,7 +299,7 @@ export default async function ProductoPage({
           <input type="hidden" name="slug" value={slug} />
           <input type="hidden" name="volver" value={`/productos/${slug}`} />
           <input name="piezas" inputMode="numeric" placeholder="Piezas" required style={{ flex: '0 1 90px' }} />
-          <input name="variante" placeholder="Variante / color (opcional)" style={{ flex: '0 1 200px' }} />
+          <input name="variante" list="colores" placeholder="Variante / color (opcional)" style={{ flex: '0 1 200px' }} />
           <label className="row checkbox small" style={{ margin: 0, flex: '0 0 auto', alignItems: 'center' }}>
             <input type="checkbox" name="descontar" defaultChecked={!!costeo} disabled={!costeo} /> Descontar materiales
           </label>
@@ -354,7 +356,9 @@ export default async function ProductoPage({
                     <td style={{ whiteSpace: 'nowrap' }}>
                       {cantidad(l.cantidad)} {l.unidad}
                     </td>
-                    <td>{l.color ?? <span className="muted">—</span>}</td>
+                    <td>
+                      <Color nombre={l.color} />
+                    </td>
                     <td className="muted" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {l.precio === null ? (
                         <Link href="/insumos" className="blocked small">
@@ -409,7 +413,7 @@ export default async function ProductoPage({
               ))}
             </select>
             <input name="cantidad" inputMode="decimal" placeholder="Cantidad" required style={{ flex: '0 1 110px' }} />
-            <input name="color" placeholder="Color (opcional)" style={{ flex: '0 1 150px' }} />
+            <input name="color" list="colores" placeholder="Color (opcional)" style={{ flex: '0 1 150px' }} />
             <input name="nota" placeholder="Nota (opcional)" />
             <button type="submit">Agregar</button>
           </form>

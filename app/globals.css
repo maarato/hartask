@@ -329,3 +329,68 @@ button.mini { padding:3px 9px; font-size:12px; border-radius:7px; }
 .mini-details summary { white-space:nowrap; padding:3px 0; }
 .mini-details[open] { display:flex; gap:6px; flex-wrap:wrap; }
 .stock-bajo td:first-child { box-shadow:inset 3px 0 0 #c98a2b; }
+
+/* Colour swatch next to a colour name. */
+.color { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+.muestra {
+  display:inline-block; width:14px; height:14px; border-radius:4px; flex:0 0 auto;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.25);
+}
+.muestra-transparente {
+  background:repeating-conic-gradient(#9aa4b2 0 25%, #12161b 0 50%) 50% / 8px 8px;
+}
+.insumo-precio { flex-wrap:nowrap; min-width:0; }
+.form .insumo-precio { flex:1 1 360px; }
+.precio-unitario { color:#82dcb2; }
+
+/* Máquinas */
+.maquinas { display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); }
+.maquina { gap:10px; transition:border-color .12s ease; border-top-width:3px; }
+.maquina:hover { border-color:#3d6be0; }
+.maquina-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.maquina-nombre { font-size:16px; }
+.ranuras { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:4px; }
+.ranuras li { display:flex; align-items:center; gap:8px; }
+.ranura-num {
+  display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; flex:0 0 20px;
+  border-radius:6px; border:1px solid #3b4350; font-size:11px; color:#9aa4b2;
+}
+.ranura-form { align-items:center; }
+.ranura-actual { flex:1 1 200px; min-width:0; }
+
+[data-estado-maquina="Activa"].badge { border-color:#2f9e6b; color:#82dcb2; }
+[data-estado-maquina="Trabajando"].badge { border-color:#3d6be0; color:#9dbaff; }
+[data-estado-maquina="Por calibrar"].badge { border-color:#c98a2b; color:#f0c274; }
+[data-estado-maquina="Falla"].badge { border-color:#c0453d; color:#f2938c; }
+[data-estado-maquina="Fuera de servicio"].badge { border-color:#4a5260; color:#8b93a1; }
+.maquina[data-estado-maquina="Activa"] { border-top-color:#2f9e6b; }
+.maquina[data-estado-maquina="Trabajando"] { border-top-color:#3d6be0; }
+.maquina[data-estado-maquina="Por calibrar"] { border-top-color:#c98a2b; }
+.maquina[data-estado-maquina="Falla"] { border-top-color:#c0453d; }
+.maquina[data-estado-maquina="Fuera de servicio"] { border-top-color:#4a5260; opacity:.75; }
+
+/* Status picker: radio buttons drawn as one segmented control. */
+.segmentos { display:flex; flex-wrap:wrap; gap:6px; flex:1 1 100%; }
+.segmento input { position:absolute; opacity:0; pointer-events:none; }
+.segmento span {
+  display:inline-block; padding:6px 12px; border-radius:999px; font-size:13px; cursor:pointer;
+  border:1px solid #2a2f37; color:#9aa4b2;
+}
+.segmento span:hover { border-color:#3b4350; color:#e4e9f0; }
+.segmento input:focus-visible + span { outline:2px solid #3d6be0; outline-offset:2px; }
+.segmento input:checked + span { color:#f5f7fa; font-weight:600; background:#1b222b; }
+.segmento[data-estado-maquina="Activa"] input:checked + span { border-color:#2f9e6b; color:#82dcb2; }
+.segmento[data-estado-maquina="Trabajando"] input:checked + span { border-color:#3d6be0; color:#9dbaff; }
+.segmento[data-estado-maquina="Por calibrar"] input:checked + span { border-color:#c98a2b; color:#f0c274; }
+.segmento[data-estado-maquina="Falla"] input:checked + span { border-color:#c0453d; color:#f2938c; }
+.segmento[data-estado-maquina="Fuera de servicio"] input:checked + span { border-color:#4a5260; }
+
+.cola { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
+.cola li[data-estado-cola="En curso"] { border-left:3px solid #3d6be0; padding-left:10px; }
+.badge[data-estado-cola="En curso"] { border-color:#3d6be0; color:#9dbaff; }
+.tarea-acciones form { margin:0; }
+
+.detalles { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:8px 16px; }
+.detalle-fila { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,3fr); gap:6px; }
+.detalle-fila input:first-child { color:#9aa4b2; }
+@media (max-width: 620px) { .tarea-acciones { flex-wrap:wrap; } }

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Color, ListaColores } from '@/components/color';
 import { listarProductos } from '@/lib/micho/catalogo';
 import { cantidad, listarInsumos } from '@/lib/micho/costos';
 import { listarStockMateriales, listarStockProductos, movimientos } from '@/lib/micho/stock';
@@ -35,6 +36,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="stack sections">
+      <ListaColores />
       <header className="section-head">
         <h1 style={{ margin: 0 }}>Stock</h1>
         <p className="muted">
@@ -72,7 +74,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
                 </option>
               ))}
           </select>
-          <input name="variante" placeholder="Variante / color (opcional)" style={{ flex: '0 1 180px' }} />
+          <input name="variante" list="colores" placeholder="Variante / color (opcional)" style={{ flex: '0 1 180px' }} />
           <input name="piezas" inputMode="numeric" placeholder="Piezas" required style={{ flex: '0 1 90px' }} />
           <label className="row checkbox small" style={{ margin: 0, flex: '0 0 auto', alignItems: 'center' }}>
             <input type="checkbox" name="descontar" defaultChecked /> Descontar materiales
@@ -99,7 +101,9 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
                         {nombre.get(s.slug) ?? s.slug}
                       </Link>
                     </td>
-                    <td>{s.variante || <span className="muted">—</span>}</td>
+                    <td>
+                      <Color nombre={s.variante} />
+                    </td>
                     <td style={{ textAlign: 'right' }} className={s.cantidad < 0 ? 'blocked' : undefined}>
                       <strong>{s.cantidad}</strong>
                     </td>
@@ -161,7 +165,9 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
                       {m.insumo}
                       {m.bajo ? <span className="badge costo-incompleto" style={{ marginLeft: 8 }}>por acabarse</span> : null}
                     </td>
-                    <td>{m.color || <span className="muted">—</span>}</td>
+                    <td>
+                      <Color nombre={m.color} />
+                    </td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <strong>{cantidad(m.cantidad)}</strong> <span className="muted small">{m.unidad}</span>
                     </td>
@@ -224,7 +230,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
                 </option>
               ))}
             </select>
-            <input name="color" placeholder="Color (opcional)" style={{ flex: '0 1 150px' }} />
+            <input name="color" list="colores" placeholder="Color (opcional)" style={{ flex: '0 1 150px' }} />
             <input name="cantidad" inputMode="decimal" placeholder="Cuánto hay" required style={{ flex: '0 1 120px' }} />
             <input name="minimo" inputMode="decimal" placeholder="Mínimo (opcional)" style={{ flex: '0 1 140px' }} />
             <button type="submit">Agregar</button>

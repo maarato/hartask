@@ -10,6 +10,10 @@ import type { PromptStatus } from '@/lib/hartask/types';
 export function resetDb(): void {
   const db = getDb();
   db.exec(`
+    DELETE FROM micho_cola;
+    DELETE FROM micho_maquina_consumibles;
+    DELETE FROM micho_maquina_detalles;
+    DELETE FROM micho_maquinas;
     DELETE FROM micho_product_tasks;
     DELETE FROM micho_movimientos;
     DELETE FROM micho_stock_materiales;

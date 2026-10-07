@@ -1,7 +1,8 @@
 import Link from 'next/link';
+import { Materiales } from '@/components/color';
 import { Carrusel } from '@/components/carrusel';
 import type { Producto } from '@/lib/micho/catalogo';
-import { pesos, resumenMateriales, type Costeo } from '@/lib/micho/costos';
+import { pesos, type Costeo } from '@/lib/micho/costos';
 import type { ResumenFicha } from '@/lib/micho/fichas';
 
 export function urlArchivo(ruta: string): string {
@@ -38,7 +39,6 @@ export function ProductoCard({
   /** Finished pieces on hand; undefined when none were ever registered. */
   stock?: number;
 }) {
-  const materiales = costeo ? resumenMateriales(costeo) : '';
   const info = (
     <>
       <strong>{p.nombre}</strong>
@@ -51,7 +51,7 @@ export function ProductoCard({
         <CostoBadge costeo={costeo} />
         {stock ? <span className="badge stock">{stock} listas</span> : null}
       </span>
-      {materiales ? <span className="small materiales">{materiales}</span> : null}
+      {costeo ? <Materiales lineas={costeo.lineas} /> : null}
       {avance?.next_action ? <span className="producto-avance">Sigue: {avance.next_action}</span> : null}
       {avance?.pendientes ? (
         <span className="muted small">

@@ -45,7 +45,11 @@ const ADDED_COLUMNS: { table: string; column: string; definition: string }[] = [
   { table: 'prompt_runs', column: 'uuid', definition: 'TEXT' },
   { table: 'prompt_runs', column: 'origin', definition: 'TEXT' },
   { table: 'prompt_runs', column: 'lamport', definition: 'INTEGER NOT NULL DEFAULT 0' },
-  { table: 'prompt_runs', column: 'synced_lamport', definition: 'INTEGER NOT NULL DEFAULT 0' }
+  { table: 'prompt_runs', column: 'synced_lamport', definition: 'INTEGER NOT NULL DEFAULT 0' },
+  // Micho Store: what a supply is bought as ($350 for a 1000 g spool), from
+  // which the per-unit price is derived.
+  { table: 'micho_insumos', column: 'precio_compra', definition: 'REAL' },
+  { table: 'micho_insumos', column: 'presentacion', definition: 'REAL NOT NULL DEFAULT 1' }
 ];
 
 /** Tables whose rows are identified across origins by a uuid. */

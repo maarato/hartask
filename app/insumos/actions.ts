@@ -17,8 +17,8 @@ function text(formData: FormData, field: string): string | null {
 }
 
 /** A blank price means "not known yet", which is different from $0. */
-function precio(formData: FormData): number | null {
-  const raw = text(formData, 'precio')?.replace(/[$,\s]/g, '');
+function numero(formData: FormData, field: string): number | null {
+  const raw = text(formData, field)?.replace(/[$\s]/g, '').replace(',', '.');
   const n = raw ? Number(raw) : NaN;
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
@@ -27,7 +27,14 @@ function datos(formData: FormData): DatosInsumo | null {
   const nombre = text(formData, 'nombre');
   const unidad = text(formData, 'unidad');
   if (!nombre || !unidad) return null;
-  return { nombre, unidad, tipo: text(formData, 'tipo'), precio: precio(formData), notas: text(formData, 'notas') };
+  return {
+    nombre,
+    unidad,
+    tipo: text(formData, 'tipo'),
+    precioCompra: numero(formData, 'precio_compra'),
+    presentacion: numero(formData, 'presentacion'),
+    notas: text(formData, 'notas')
+  };
 }
 
 /** Prices feed every product's cost, so every page that shows one is refreshed. */

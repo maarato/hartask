@@ -1,8 +1,9 @@
 import Link from 'next/link';
+import { Materiales } from '@/components/color';
 import { CostoBadge, urlArchivo } from '@/components/producto-card';
 import { CLOSED_STATUSES } from '@/lib/hartask/types';
 import type { Producto } from '@/lib/micho/catalogo';
-import { resumenMateriales, type Costeo } from '@/lib/micho/costos';
+import type { Costeo } from '@/lib/micho/costos';
 import type { Ficha } from '@/lib/micho/fichas';
 
 const MAX_TAREAS = 5;
@@ -35,7 +36,6 @@ export function ProductoFila({
   costeo?: Costeo | null;
   stock?: number;
 }) {
-  const materiales = costeo ? resumenMateriales(costeo) : '';
   const pendientes = ficha?.subtareas.filter((t) => !CLOSED_STATUSES.includes(t.status)) ?? [];
   const ultimo = ficha?.hallazgos[0];
   const titulo = p.slug ? (
@@ -71,7 +71,7 @@ export function ProductoFila({
             </Link>
           ) : null}
         </span>
-        {materiales ? <span className="small materiales">{materiales}</span> : null}
+        {costeo ? <Materiales lineas={costeo.lineas} /> : null}
         {ficha?.tarea.next_action ? (
           <span className="producto-avance">Sigue: {ficha.tarea.next_action}</span>
         ) : null}

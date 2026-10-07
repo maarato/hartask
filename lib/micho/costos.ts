@@ -2,9 +2,9 @@ import { getDb } from '@/lib/db/client';
 
 /**
  * Production cost, the same shape for every product: a list of supplies
- * (insumos) with quantity and colour. A supply is anything with a price per
- * unit — MDF by the sheet, PLA by the gram, laser time by the hour, a box by
- * the piece — so material, machine time and packaging add up the same way.
+ * (insumos) with quantity and colour. A supply is bought as a purchase ($350
+ * for a 1000 g spool) and used per unit (40 g), so the per-unit price is
+ * derived once and every product's cost adds up the same way.
  */
 
 export const TIPOS_INSUMO = ['Material', 'Consumible', 'Componente', 'Empaque', 'Máquina', 'Otro'] as const;
@@ -15,8 +15,12 @@ export type Insumo = {
   nombre: string;
   tipo: TipoInsumo;
   unidad: string;
-  /** MXN per unit; null while the price is not known yet. */
+  /** MXN per unit, derived from precio_compra / presentacion; null while unknown. */
   precio: number | null;
+  /** What is paid for one purchase, e.g. 350 for a spool. */
+  precio_compra: number | null;
+  /** Units in one purchase, e.g. 1000 (g) for a 1 kg spool. */
+  presentacion: number;
   notas: string | null;
   updated_at: string;
 };
@@ -45,12 +49,10 @@ export type Costeo = {
 };
 
 /** What the empty catalogue offers to create, without guessing any price. */
-export const INSUMOS_BASICOS: { nombre: string; tipo: TipoInsumo; unidad: string }[] = [
-  { nombre: 'MDF 3 mm', tipo: 'Material', unidad: 'hoja 30×30 cm' },
-  { nombre: 'PLA', tipo: 'Material', unidad: 'g' },
-  { nombre: 'PETG', tipo: 'Material', unidad: 'g' },
-  { nombre: 'Láser diodo', tipo: 'Máquina', unidad: 'hora' },
-  { nombre: 'Impresora 3D', tipo: 'Máquina', unidad: 'hora' }
+export const INSUMOS_BASICOS: { nombre: string; tipo: TipoInsumo; unidad: string; presentacion: number }[] = [
+  { nombre: 'MDF 3 mm', tipo: 'Material', unidad: 'hoja 30×30 cm', presentacion: 1 },
+  { nombre: 'PLA', tipo: 'Material', unidad: 'g', presentacion: 1000 },
+  { nombre: 'PETG', tipo: 'Material', unidad: 'g', presentacion: 1000 }
 ];
 
 /** No type given means Material, the common case; an unknown one means Otro. */
@@ -72,25 +74,47 @@ export type DatosInsumo = {
   nombre: string;
   tipo?: string | null;
   unidad: string;
+  /** Price of one purchase ($350 for the spool). */
+  precioCompra?: number | null;
+  /** Units in one purchase (1000 g); defaults to 1, i.e. the price is per unit. */
+  presentacion?: number | null;
+  /** Shortcut for a price already per unit: same as precioCompra with presentacion 1. */
   precio?: number | null;
   notas?: string | null;
 };
 
+/** Normalises the purchase and derives the per-unit price everything else uses. */
+function precios(d: DatosInsumo): { compra: number | null; presentacion: number; unitario: number | null } {
+  const presentacion = d.presentacion && d.presentacion > 0 ? d.presentacion : 1;
+  const compra = d.precioCompra ?? d.precio ?? null;
+  const usaPrecio = d.precioCompra == null && d.precio != null;
+  return {
+    compra,
+    presentacion: usaPrecio ? 1 : presentacion,
+    unitario: compra === null ? null : compra / (usaPrecio ? 1 : presentacion)
+  };
+}
+
 export function crearInsumo(datos: DatosInsumo): Insumo {
   const db = getDb();
+  const p = precios(datos);
   const info = db
-    .prepare(`INSERT INTO micho_insumos (nombre, tipo, unidad, precio, notas) VALUES (?, ?, ?, ?, ?)`)
-    .run(datos.nombre, tipoValido(datos.tipo), datos.unidad, datos.precio ?? null, datos.notas ?? null);
+    .prepare(
+      `INSERT INTO micho_insumos (nombre, tipo, unidad, precio, precio_compra, presentacion, notas)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(datos.nombre, tipoValido(datos.tipo), datos.unidad, p.unitario, p.compra, p.presentacion, datos.notas ?? null);
   return db.prepare(`SELECT * FROM micho_insumos WHERE id = ?`).get(info.lastInsertRowid) as Insumo;
 }
 
 export function actualizarInsumo(id: number, datos: DatosInsumo): void {
+  const p = precios(datos);
   getDb()
     .prepare(
-      `UPDATE micho_insumos SET nombre = ?, tipo = ?, unidad = ?, precio = ?, notas = ?,
-              updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+      `UPDATE micho_insumos SET nombre = ?, tipo = ?, unidad = ?, precio = ?, precio_compra = ?, presentacion = ?,
+              notas = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
     )
-    .run(datos.nombre, tipoValido(datos.tipo), datos.unidad, datos.precio ?? null, datos.notas ?? null, id);
+    .run(datos.nombre, tipoValido(datos.tipo), datos.unidad, p.unitario, p.compra, p.presentacion, datos.notas ?? null, id);
 }
 
 /** How many product lines use each supply, so a used one cannot be deleted from under them. */
@@ -101,12 +125,13 @@ export function usosPorInsumo(): Map<number, number> {
   return new Map(filas.map((f) => [f.insumo_id, f.n]));
 }
 
-/** Supplies with stock rows or stock history, which keep pointing at them. */
+/** Supplies with stock rows, stock history or loaded in a machine, which keep pointing at them. */
 export function insumosConStock(): Set<number> {
   const filas = getDb()
     .prepare(
       `SELECT insumo_id FROM micho_stock_materiales
-       UNION SELECT insumo_id FROM micho_movimientos WHERE insumo_id IS NOT NULL`
+       UNION SELECT insumo_id FROM micho_movimientos WHERE insumo_id IS NOT NULL
+       UNION SELECT insumo_id FROM micho_maquina_consumibles WHERE insumo_id IS NOT NULL`
     )
     .all() as { insumo_id: number }[];
   return new Set(filas.map((f) => f.insumo_id));
@@ -123,10 +148,10 @@ export function borrarInsumo(id: number): boolean {
 export function crearInsumosBasicos(): void {
   const db = getDb();
   const insertar = db.prepare(
-    `INSERT INTO micho_insumos (nombre, tipo, unidad) VALUES (?, ?, ?) ON CONFLICT(nombre) DO NOTHING`
+    `INSERT INTO micho_insumos (nombre, tipo, unidad, presentacion) VALUES (?, ?, ?, ?) ON CONFLICT(nombre) DO NOTHING`
   );
   db.transaction(() => {
-    for (const b of INSUMOS_BASICOS) insertar.run(b.nombre, b.tipo, b.unidad);
+    for (const b of INSUMOS_BASICOS) insertar.run(b.nombre, b.tipo, b.unidad, b.presentacion);
   })();
 }
 

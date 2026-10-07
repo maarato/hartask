@@ -34,16 +34,26 @@ function tareaDeFicha(slug: string): Task | null {
   return fila ? porUuid(fila.task_uuid) : null;
 }
 
-/** The board's root "Productos" task, so fichas sit under it instead of loose at the top. */
-function raizDeProductos(): number | null {
-  const raiz = getDb()
+/**
+ * The board's root task for an area ("Productos", "Máquinas"), so fichas sit
+ * under it instead of loose at the top. Created when `crear` and missing.
+ */
+function raiz(titulo: string, crear: boolean): number | null {
+  const fila = getDb()
     .prepare(
       `SELECT id FROM tasks WHERE parent_id IS NULL AND title = ? COLLATE NOCASE AND archived_at IS NULL
        ORDER BY id LIMIT 1`
     )
-    .get(CATEGORIA) as { id: number } | undefined;
-  return raiz?.id ?? null;
+    .get(titulo) as { id: number } | undefined;
+  if (fila) return fila.id;
+  return crear ? createTask({ title: titulo, category: titulo, priority: 2 }).id : null;
 }
+
+/** What kind of thing a ficha belongs to: decides its title prefix and where it sits on the board. */
+export type TipoFicha = { prefijo: string; raiz: string; crearRaiz: boolean };
+
+export const FICHA_PRODUCTO: TipoFicha = { prefijo: 'Producto', raiz: CATEGORIA, crearRaiz: false };
+export const FICHA_MAQUINA: TipoFicha = { prefijo: 'Máquina', raiz: 'Máquinas', crearRaiz: true };
 
 export function obtenerFicha(slug: string): Ficha | null {
   const tarea = tareaDeFicha(slug);
@@ -56,18 +66,24 @@ export function obtenerFicha(slug: string): Ficha | null {
 }
 
 /**
- * Returns the product's ficha task, creating it on first use. A link whose
- * task no longer exists is replaced rather than left pointing nowhere.
+ * Returns the ficha task, creating it on first use. A link whose task no
+ * longer exists is replaced rather than left pointing nowhere. Machine fichas
+ * use the key `maquina:<slug>`, so they never collide with a product.
  */
-export function asegurarFicha(slug: string, nombre: string, agentId?: string | null): Task {
+export function asegurarFicha(
+  slug: string,
+  nombre: string,
+  agentId?: string | null,
+  tipo: TipoFicha = FICHA_PRODUCTO
+): Task {
   const db = getDb();
   const run = db.transaction((): Task => {
     const existente = tareaDeFicha(slug);
     if (existente) return existente;
     const tarea = createTask({
-      title: `Producto: ${nombre}`,
-      parentId: raizDeProductos(),
-      category: CATEGORIA,
+      title: `${tipo.prefijo}: ${nombre}`,
+      parentId: raiz(tipo.raiz, tipo.crearRaiz),
+      category: tipo.raiz,
       priority: 2,
       agentId: agentId ?? null
     });
