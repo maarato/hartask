@@ -7,7 +7,7 @@ import { getDb } from '@/lib/db/client';
  * the piece — so material, machine time and packaging add up the same way.
  */
 
-export const TIPOS_INSUMO = ['Material', 'Máquina', 'Empaque', 'Otro'] as const;
+export const TIPOS_INSUMO = ['Material', 'Consumible', 'Componente', 'Empaque', 'Máquina', 'Otro'] as const;
 export type TipoInsumo = (typeof TIPOS_INSUMO)[number];
 
 export type Insumo = {
@@ -63,7 +63,7 @@ export function listarInsumos(): Insumo[] {
   return getDb()
     .prepare(
       `SELECT * FROM micho_insumos
-        ORDER BY CASE tipo WHEN 'Material' THEN 0 WHEN 'Máquina' THEN 1 WHEN 'Empaque' THEN 2 ELSE 3 END, nombre`
+        ORDER BY CASE tipo WHEN 'Material' THEN 0 WHEN 'Consumible' THEN 1 WHEN 'Componente' THEN 2 WHEN 'Empaque' THEN 3 WHEN 'Máquina' THEN 4 ELSE 5 END, nombre`
     )
     .all() as Insumo[];
 }

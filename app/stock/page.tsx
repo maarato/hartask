@@ -30,7 +30,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
   const totalPiezas = stockProductos.reduce((s, x) => s + x.cantidad, 0);
   const materiales = listarStockMateriales();
   const bajos = materiales.filter((m) => m.bajo).length;
-  const insumosConStock = listarInsumos().filter((i) => i.tipo === 'Material' || i.tipo === 'Empaque');
+  const insumosConStock = listarInsumos().filter((i) => i.tipo !== 'Máquina');
   const historial = movimientos({ limite: 40 });
 
   return (

@@ -164,7 +164,8 @@ export function fijarProducto(slug: string, variante: string | null, cantidad: n
  * Registers `piezas` made of a product. With `descontar`, the materials and
  * packaging in its cost sheet are taken from stock: quantity per piece × pieces,
  * matching the line's colour (a line without colour takes the colourless row).
- * Machine time has no stock and is skipped. Returns the rows left negative, so
+ * Machine time has no stock and is skipped; everything else (material,
+ * packaging, consumables, parts) comes off. Returns the rows left negative, so
  * the page can say what you did not actually have.
  */
 export function fabricar(
@@ -179,7 +180,7 @@ export function fabricar(
   db.transaction(() => {
     moverProducto(slug, variante, piezas, 'fabricación', nota);
     if (!descontar) return;
-    const lineas = costeoDe(slug)?.lineas.filter((l) => l.tipo === 'Material' || l.tipo === 'Empaque') ?? [];
+    const lineas = costeoDe(slug)?.lineas.filter((l) => l.tipo !== 'Máquina') ?? [];
     for (const l of lineas) {
       moverMaterial(l.insumo_id, l.color, -l.cantidad * piezas, 'fabricación', `${piezas} pz`, slug);
     }
