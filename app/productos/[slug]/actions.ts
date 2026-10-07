@@ -6,6 +6,7 @@ import { isTaskStatus } from '@/lib/hartask/types';
 import { listarProductos } from '@/lib/micho/catalogo';
 import { agregarLinea, borrarLinea } from '@/lib/micho/costos';
 import { asegurarFicha, CATEGORIA } from '@/lib/micho/fichas';
+import { fijarPrecio } from '@/lib/micho/precios';
 
 function text(formData: FormData, field: string): string | null {
   const value = formData.get(field);
@@ -107,5 +108,15 @@ export async function quitarInsumoProductoAction(formData: FormData): Promise<vo
   const id = numero(formData, 'id');
   if (!id) return;
   borrarLinea(id);
+  refrescar();
+}
+
+/** The price a product sells for on a channel; a blank field removes it. */
+export async function fijarPrecioAction(formData: FormData): Promise<void> {
+  const slug = text(formData, 'slug');
+  const canalId = numero(formData, 'canal_id');
+  if (!slug || !canalId || !listarProductos().some((p) => p.slug === slug)) return;
+  const precio = numero(formData, 'precio');
+  fijarPrecio(slug, canalId, precio !== null && precio > 0 ? precio : null);
   refrescar();
 }

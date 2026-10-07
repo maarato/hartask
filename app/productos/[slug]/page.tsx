@@ -7,11 +7,13 @@ import { listTasks } from '@/lib/hartask/repositories/tasks';
 import { CLOSED_STATUSES, TASK_STATUSES, type TaskStatus } from '@/lib/hartask/types';
 import { cantidad, costeoDe, listarInsumos, pesos } from '@/lib/micho/costos';
 import { obtenerFicha } from '@/lib/micho/fichas';
+import { canalCompleto, cuenta, listarCanales, margenObjetivo, precioSugerido, preciosDe } from '@/lib/micho/precios';
 import { movimientos, stockPorProducto } from '@/lib/micho/stock';
 import { fabricarAction, salidaProductoAction } from '../../stock/actions';
 import {
   agregarHallazgoAction,
   agregarInsumoProductoAction,
+  fijarPrecioAction,
   agregarTareaAction,
   cambiarEstadoTareaAction,
   guardarAvanceAction,
@@ -94,6 +96,9 @@ export default async function ProductoPage({
   const costeo = costeoDe(slug);
   const insumos = listarInsumos();
   const stock = stockPorProducto().get(slug);
+  const canales = listarCanales();
+  const precios = preciosDe(slug);
+  const margen = margenObjetivo();
   const movs = movimientos({ slug, limite: 10 });
   const abiertas = ficha?.subtareas.filter((t) => !CLOSED_STATUSES.includes(t.status)) ?? [];
   const cerradas = ficha?.subtareas.filter((t) => CLOSED_STATUSES.includes(t.status)) ?? [];
@@ -424,6 +429,93 @@ export default async function ProductoPage({
         )}
         <span className="muted small">
           Por pieza: si una hoja de MDF rinde 2 piezas, pon 0.5 hojas. Las horas de máquina se ponen en horas (30 min = 0.5).
+        </span>
+      </section>
+
+      <section className="card stack">
+        <header className="section-head">
+          <h2>Precio de venta</h2>
+          <span className="muted small">margen objetivo {margen}%</span>
+          <Link href="/canales" className="muted small" style={{ marginLeft: 'auto' }}>
+            Canales y comisiones →
+          </Link>
+        </header>
+        {!canales.length ? (
+          <p className="small">
+            Primero da de alta tus canales en <Link href="/canales" className="task-link">Canales</Link>.
+          </p>
+        ) : !costeo ? (
+          <p className="muted small">
+            Sin costeo no se puede calcular: agrega los insumos de una pieza en “Producción y costo”. Puedes anotar ya lo
+            que cobras.
+          </p>
+        ) : null}
+        {canales.length ? (
+          <div className="tabla-wrap">
+            <table className="tabla">
+              <thead>
+                <tr>
+                  <th>Canal</th>
+                  <th style={{ textAlign: 'right' }}>Sugerido</th>
+                  <th>Cobras</th>
+                  <th style={{ textAlign: 'right' }}>Canal + envío</th>
+                  <th style={{ textAlign: 'right' }}>Te queda</th>
+                  <th style={{ textAlign: 'right' }}>Margen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {canales.map((c) => {
+                  const precio = precios.get(c.id);
+                  const sugerido = costeo ? precioSugerido(costeo.total, c, margen) : null;
+                  const r = precio !== undefined && costeo ? cuenta(precio, costeo.total, c) : null;
+                  return (
+                    <tr key={c.id}>
+                      <td>
+                        {c.nombre}
+                        {!canalCompleto(c) ? (
+                          <Link href="/canales" className="blocked small" style={{ display: 'block' }}>
+                            faltan sus tarifas
+                          </Link>
+                        ) : null}
+                      </td>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }} className="muted">
+                        {sugerido !== null ? pesos(sugerido) : costeo ? 'no alcanza' : '—'}
+                      </td>
+                      <td>
+                        <form action={fijarPrecioAction} className="row mini-form">
+                          <input type="hidden" name="slug" value={slug} />
+                          <input type="hidden" name="canal_id" value={c.id} />
+                          <input name="precio" inputMode="decimal" defaultValue={precio ?? ''} placeholder="$" aria-label={`Precio en ${c.nombre}`} />
+                          <button type="submit" className="mini">
+                            Guardar
+                          </button>
+                        </form>
+                      </td>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }} className="muted">
+                        {r ? pesos(r.canal + r.envio) : '—'}
+                      </td>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }} className={r && r.ganancia < 0 ? 'blocked' : undefined}>
+                        {r ? <strong>{pesos(r.ganancia)}</strong> : '—'}
+                      </td>
+                      <td
+                        style={{ textAlign: 'right', whiteSpace: 'nowrap' }}
+                        className={r ? (r.margen < 0 ? 'blocked' : r.margen < margen ? 'margen-bajo' : 'margen-ok') : undefined}
+                      >
+                        {r ? `${r.margen.toFixed(0)}%` : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+        {costeo && !costeo.completo ? (
+          <span className="small margen-bajo">El costeo está incompleto (algún insumo sin precio): lo que te queda es menos.</span>
+        ) : null}
+        <span className="muted small">
+          Sugerido = (costo + cargo fijo + envío) ÷ (1 − comisión − margen), redondeado hacia arriba. Deja vacío
+          “Cobras” si no lo vendes en ese canal.
         </span>
       </section>
 

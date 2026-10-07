@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Materiales } from '@/components/color';
-import { CostoBadge, urlArchivo } from '@/components/producto-card';
+import { CostoBadge, PrecioBadge, urlArchivo } from '@/components/producto-card';
 import { CLOSED_STATUSES } from '@/lib/hartask/types';
 import type { Producto } from '@/lib/micho/catalogo';
 import type { Costeo } from '@/lib/micho/costos';
@@ -29,12 +29,14 @@ export function ProductoFila({
   p,
   ficha,
   costeo,
-  stock
+  stock,
+  precios
 }: {
   p: Producto;
   ficha?: Ficha | null;
   costeo?: Costeo | null;
   stock?: number;
+  precios?: number[];
 }) {
   const pendientes = ficha?.subtareas.filter((t) => !CLOSED_STATUSES.includes(t.status)) ?? [];
   const ultimo = ficha?.hallazgos[0];
@@ -63,6 +65,7 @@ export function ProductoFila({
           </span>
           <span className="category">{p.tecnica}</span>
           {p.canales ? <span className="badge">{p.canales}</span> : null}
+          <PrecioBadge precios={precios} />
           <CostoBadge costeo={costeo} />
           {stock ? <span className="badge stock">{stock} listas</span> : null}
           {ficha ? (

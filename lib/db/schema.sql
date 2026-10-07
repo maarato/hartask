@@ -304,3 +304,30 @@ CREATE TABLE IF NOT EXISTS micho_cola (
   finished_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_micho_cola_maquina ON micho_cola(maquina_id, estado);
+
+-- Micho Store: canales de venta con lo que cobran, y el precio de cada
+-- producto en cada canal. NULL = todavía no se sabe.
+CREATE TABLE IF NOT EXISTS micho_canales (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  comision_pct REAL,
+  cargo_fijo REAL,
+  envio REAL,
+  notas TEXT,
+  orden INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS micho_precios (
+  slug TEXT NOT NULL,
+  canal_id INTEGER NOT NULL REFERENCES micho_canales(id),
+  precio REAL NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (slug, canal_id)
+);
+
+-- Ajustes sueltos de Micho Store (margen objetivo, ...).
+CREATE TABLE IF NOT EXISTS micho_config (
+  clave TEXT PRIMARY KEY,
+  valor TEXT
+);

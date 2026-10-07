@@ -396,3 +396,13 @@ button.mini { padding:3px 9px; font-size:12px; border-radius:7px; }
 @media (max-width: 620px) { .tarea-acciones { flex-wrap:wrap; } }
 .borrar-maquina { border-top:1px solid #1e242c; padding-top:12px; }
 .borrar-maquina button { border-color:#5c2d2a; color:#f2938c; }
+
+/* Canales y precios */
+.campo-num { margin:0; gap:6px; flex:0 0 auto; flex-wrap:nowrap; }
+.campo-num input { flex:0 0 76px !important; width:76px; }
+.canal { gap:8px; }
+.borrar-canal { margin-left:auto; }
+.borrar-canal[open] { display:flex; gap:8px; align-items:center; }
+.margen-ok { color:#82dcb2; }
+.margen-bajo { color:#f0c274; }
+.badge.precio { border-color:#8a5cd6; color:#c5a8f5; }

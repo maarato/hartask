@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ProductoCard } from '@/components/producto-card';
 import { ProductoFila } from '@/components/producto-fila';
 import { todosLosCosteos } from '@/lib/micho/costos';
+import { todosLosPrecios } from '@/lib/micho/precios';
 import { stockPorProducto } from '@/lib/micho/stock';
 import { resumenFichas, todasLasFichas } from '@/lib/micho/fichas';
 import { ESTADOS, listarProductos } from '@/lib/micho/catalogo';
@@ -35,6 +36,8 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
   const completas = lista ? todasLasFichas() : null;
   const costeos = todosLosCosteos();
   const stock = stockPorProducto();
+  const precios = todosLosPrecios();
+  const preciosDe = (slug: string | null) => (slug ? [...(precios.get(slug)?.values() ?? [])] : undefined);
   const costeoDe = (p: { slug: string | null }) => (p.slug ? costeos.get(p.slug) ?? null : null);
   const sinCosteo = productos.filter((p) => !costeoDe(p)).length;
   const familias = [...new Set(productos.map((p) => familia(p.tecnica)))];
@@ -113,13 +116,13 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
       {visibles.length && lista ? (
         <div className="stack">
           {visibles.map((p) => (
-            <ProductoFila key={`${p.estado}-${p.nombre}`} p={p} ficha={p.slug ? completas!.get(p.slug) : null} costeo={costeoDe(p)} stock={p.slug ? stock.get(p.slug)?.total : undefined} />
+            <ProductoFila key={`${p.estado}-${p.nombre}`} p={p} ficha={p.slug ? completas!.get(p.slug) : null} costeo={costeoDe(p)} stock={p.slug ? stock.get(p.slug)?.total : undefined} precios={preciosDe(p.slug)} />
           ))}
         </div>
       ) : visibles.length ? (
         <div className="catalogo">
           {visibles.map((p) => (
-            <ProductoCard key={`${p.estado}-${p.nombre}`} p={p} avance={p.slug ? fichas.get(p.slug) : null} costeo={costeoDe(p)} stock={p.slug ? stock.get(p.slug)?.total : undefined} />
+            <ProductoCard key={`${p.estado}-${p.nombre}`} p={p} avance={p.slug ? fichas.get(p.slug) : null} costeo={costeoDe(p)} stock={p.slug ? stock.get(p.slug)?.total : undefined} precios={preciosDe(p.slug)} />
           ))}
         </div>
       ) : (

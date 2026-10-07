@@ -13,6 +13,14 @@ export function urlArchivo(ruta: string): string {
  * Production cost at a glance. "Sin costeo" is shown on purpose: the point is
  * that every product ends up with one, so the missing ones must stand out.
  */
+/** Selling price badge: one price, or the range across channels. */
+export function PrecioBadge({ precios }: { precios?: number[] }) {
+  if (!precios?.length) return null;
+  const min = Math.min(...precios);
+  const max = Math.max(...precios);
+  return <span className="badge precio">{min === max ? pesos(min) : `${pesos(min)}–${pesos(max)}`}</span>;
+}
+
 export function CostoBadge({ costeo }: { costeo?: Costeo | null }) {
   if (!costeo) return <span className="badge costo-falta">Sin costeo</span>;
   return (
@@ -31,11 +39,14 @@ export function ProductoCard({
   p,
   avance,
   costeo,
-  stock
+  stock,
+  precios
 }: {
   p: Producto;
   avance?: ResumenFicha | null;
   costeo?: Costeo | null;
+  /** Selling prices set for this product, one per channel. */
+  precios?: number[];
   /** Finished pieces on hand; undefined when none were ever registered. */
   stock?: number;
 }) {
@@ -48,6 +59,7 @@ export function ProductoCard({
         </span>
         <span className="category">{p.tecnica}</span>
         {p.canales ? <span className="badge">{p.canales}</span> : null}
+        <PrecioBadge precios={precios} />
         <CostoBadge costeo={costeo} />
         {stock ? <span className="badge stock">{stock} listas</span> : null}
       </span>
