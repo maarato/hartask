@@ -206,3 +206,19 @@ summary { cursor:pointer; }
 /* The composed role brief: long, monospaced and meant to be selected whole,
    so it gets room rather than the tight box a diagram source needs. */
 .brief { max-height:480px; overflow:auto; white-space:pre-wrap; line-height:1.5; }
+
+/* Micho Store (rama micho-store): catálogo con foto y tabla de parámetros. */
+.catalogo { display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); }
+.producto { padding:0; overflow:hidden; display:flex; flex-direction:column; }
+.producto img, .producto .sin-foto {
+  width:100%; aspect-ratio:4/3; object-fit:cover; background:#0e1216; display:block;
+}
+.producto .sin-foto { display:flex; align-items:center; justify-content:center; }
+.producto-info { padding:12px 14px 14px; gap:8px; }
+.producto-info .row { margin:0; }
+.producto-info code { word-break:break-all; }
+.tabla-wrap { overflow-x:auto; padding:0; }
+.tabla { width:100%; border-collapse:collapse; font-size:13px; }
+.tabla th, .tabla td { text-align:left; padding:8px 12px; border-bottom:1px solid #1e242c; vertical-align:top; }
+.tabla th { color:#9aa4b2; font-weight:600; }
+.tabla tr:last-child td { border-bottom:0; }
