@@ -182,3 +182,12 @@ CREATE TABLE IF NOT EXISTS shared_contexts (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Micho Store (rama micho-store): liga cada carpeta de producto con la tarea
+-- que hace de su ficha. Por uuid y no por id, para que el vínculo siga
+-- apuntando a la misma tarea después de sincronizar.
+CREATE TABLE IF NOT EXISTS micho_product_tasks (
+  slug TEXT PRIMARY KEY,
+  task_uuid TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

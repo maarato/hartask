@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ProductoCard } from '@/components/producto-card';
+import { resumenFichas } from '@/lib/micho/fichas';
 import { ESTADOS, listarProductos } from '@/lib/micho/catalogo';
 
 export const dynamic = 'force-dynamic';
@@ -25,6 +26,7 @@ function familia(tecnica: string): string {
 export default async function ProductosPage({ searchParams }: { searchParams: Promise<Filtros> }) {
   const filtros = await searchParams;
   const productos = listarProductos();
+  const fichas = resumenFichas();
   const familias = [...new Set(productos.map((p) => familia(p.tecnica)))];
   const q = filtros.q?.trim().toLowerCase();
 
@@ -78,7 +80,7 @@ export default async function ProductosPage({ searchParams }: { searchParams: Pr
       {visibles.length ? (
         <div className="catalogo">
           {visibles.map((p) => (
-            <ProductoCard key={`${p.estado}-${p.nombre}`} p={p} />
+            <ProductoCard key={`${p.estado}-${p.nombre}`} p={p} avance={p.slug ? fichas.get(p.slug) : null} />
           ))}
         </div>
       ) : (

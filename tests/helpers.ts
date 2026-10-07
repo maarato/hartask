@@ -10,6 +10,7 @@ import type { PromptStatus } from '@/lib/hartask/types';
 export function resetDb(): void {
   const db = getDb();
   db.exec(`
+    DELETE FROM micho_product_tasks;
     DELETE FROM task_events;
     DELETE FROM task_notes;
     DELETE FROM prompt_runs;

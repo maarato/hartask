@@ -29,7 +29,11 @@ export type Producto = {
   notas: string | null;
   /** Project-relative path of the first photo found, for /api/micho/archivo. */
   foto: string | null;
-  /** URL segment for /productos/[slug], derived from the folder; null without one. */
+  /**
+   * URL segment for /productos/[slug] and the key of the product's ficha. Built
+   * from the folder without its state prefix, so moving a product from
+   * `3 Prototipos/` to `1 Listos/` keeps its page and its tasks.
+   */
   slug: string | null;
 };
 
@@ -132,7 +136,13 @@ function aRelativa(abs: string): string {
   return relative(projectRootPath(), abs).split(sep).join('/');
 }
 
-/** '1 Listos/Laser/Huacal 12x12x7cm' → '1-listos-laser-huacal-12x12x7cm'. */
+/** '1 Listos/Laser/Huacal' → 'Laser/Huacal'. */
+function sinEstado(carpeta: string): string {
+  const [primero, ...resto] = carpeta.split('/');
+  return CARPETAS_DE_PRODUCTO.includes(primero) && resto.length ? resto.join('/') : carpeta;
+}
+
+/** 'Laser/Huacal 12x12x7cm' → 'laser-huacal-12x12x7cm'. */
 export function slugDe(carpeta: string): string {
   return carpeta
     .normalize('NFD')
@@ -181,10 +191,15 @@ export function listarProductos(): Producto[] {
         canales: fila['Canales'] && !['?', '—', '-'].includes(fila['Canales']) ? fila['Canales'] : null,
         notas: fila['Notas'] || fila['Qué falta'] || null,
         foto: carpeta ? primeraFoto(carpeta) : null,
-        slug: carpeta ? slugDe(carpeta) : null
+        slug: carpeta ? slugDe(sinEstado(carpeta)) : null
       });
     }
   }
+  // Group folders such as `Laser/Cuadros` exist in more than one state; only
+  // those keep the state in their slug, since they are different products.
+  const vistos = new Map<string, number>();
+  for (const p of productos) if (p.slug) vistos.set(p.slug, (vistos.get(p.slug) ?? 0) + 1);
+  for (const p of productos) if (p.slug && p.carpeta && vistos.get(p.slug)! > 1) p.slug = slugDe(p.carpeta);
   return productos;
 }
 

@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import type { Producto } from '@/lib/micho/catalogo';
+import type { ResumenFicha } from '@/lib/micho/fichas';
 
 export function urlArchivo(ruta: string): string {
   return `/api/micho/archivo?ruta=${encodeURIComponent(ruta)}`;
 }
 
 /** Catalogue card; the whole card opens the product's detail page when it has a folder. */
-export function ProductoCard({ p }: { p: Producto }) {
+export function ProductoCard({ p, avance }: { p: Producto; avance?: ResumenFicha | null }) {
   const cuerpo = (
     <>
       {p.foto ? (
@@ -24,6 +25,12 @@ export function ProductoCard({ p }: { p: Producto }) {
           <span className="category">{p.tecnica}</span>
           {p.canales ? <span className="badge">{p.canales}</span> : null}
         </span>
+        {avance?.next_action ? <span className="producto-avance">Sigue: {avance.next_action}</span> : null}
+        {avance?.pendientes ? (
+          <span className="muted small">
+            {avance.pendientes} {avance.pendientes === 1 ? 'tarea pendiente' : 'tareas pendientes'}
+          </span>
+        ) : null}
         {p.notas ? <span className="muted small">{p.notas}</span> : null}
       </div>
     </>

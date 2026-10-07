@@ -234,3 +234,20 @@ summary { cursor:pointer; }
 }
 .galeria a:hover img { border-color:#3d6be0; }
 .tabla .subcarpeta { padding-top:14px; font-family:ui-monospace, monospace; }
+.tarea-fila { flex-wrap:nowrap; }
+.tarea-titulo { flex:1; min-width:0; }
+.tarea-acciones { display:flex; gap:6px; margin-left:auto; }
+button.mini { padding:3px 9px; font-size:12px; border-radius:7px; }
+.markdown { line-height:1.6; }
+.markdown > :first-child { margin-top:0; }
+.markdown > :last-child { margin-bottom:0; }
+.markdown h1, .markdown h2, .markdown h3 { font-size:15px; margin:16px 0 6px; }
+.markdown ul, .markdown ol { padding-left:22px; margin:6px 0; }
+.markdown p { margin:6px 0; }
+.markdown table { border-collapse:collapse; margin:8px 0; font-size:13px; }
+.markdown th, .markdown td { border:1px solid #2a2f37; padding:5px 9px; text-align:left; }
+.markdown a { color:#9dbaff; text-decoration:underline; }
+.producto-avance { font-size:12px; color:#c3cad4; border-left:2px solid #3d6be0; padding-left:8px; }
+@media (max-width: 620px) {
+  .tarea-fila { flex-wrap:wrap; }
+}
