@@ -426,3 +426,5 @@ button.mini { padding:3px 9px; font-size:12px; border-radius:7px; }
 .temp-medido { border-color:#2f9e6b; }
 .temp-extrapolado { border-style:dashed; }
 .temp-ref-maquina { color:#f0c274; }
+.grupo-maquinas { gap:12px; scroll-margin-top:16px; }
+.grupo-maquinas + .grupo-maquinas { margin-top:8px; }

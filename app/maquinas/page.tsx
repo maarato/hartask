@@ -23,6 +23,23 @@ const PLURAL: Record<string, string> = {
   'Fuera de servicio': 'fuera de servicio'
 };
 
+/** Section titles: the type names are singular, a section holds several. */
+const TITULO_TIPO: Record<string, string> = {
+  'Impresora 3D': 'Impresoras 3D',
+  'Láser diodo': 'Láser diodo',
+  'Láser fibra': 'Láser de fibra',
+  'Láser CO2': 'Láser CO2',
+  Otra: 'Otras'
+};
+
+function anclaDe(tipo: string): string {
+  return tipo
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-');
+}
+
 export default async function MaquinasPage({ searchParams }: { searchParams: Promise<{ estado?: string }> }) {
   const { estado } = await searchParams;
   const maquinas = listarMaquinas();
@@ -30,6 +47,10 @@ export default async function MaquinasPage({ searchParams }: { searchParams: Pro
   const colas = colasAbiertas();
   const fichas = resumenFichas();
   const productos = new Map<string | null, string>(listarProductos().map((p) => [p.slug, p.nombre]));
+  // One section per type, in the catalogue's order; a type with no machines is not shown.
+  const grupos = TIPOS_MAQUINA.map((tipo) => ({ tipo, lista: visibles.filter((m) => m.tipo === tipo) })).filter(
+    (g) => g.lista.length
+  );
 
   return (
     <div className="stack sections">
@@ -60,60 +81,76 @@ export default async function MaquinasPage({ searchParams }: { searchParams: Pro
           ))}
         </nav>
       ) : null}
+      {grupos.length > 1 ? (
+        <nav className="row filters">
+          <span className="muted small">Ir a</span>
+          {grupos.map(({ tipo, lista }) => (
+            <a key={tipo} href={`#${anclaDe(tipo)}`} className="chip">
+              {TITULO_TIPO[tipo] ?? tipo} ({lista.length})
+            </a>
+          ))}
+        </nav>
+      ) : null}
 
-      <div className="maquinas">
-        {visibles.map((m) => {
-          const cola = colas.get(m.id) ?? [];
-          const actual = cola.find((t) => t.estado === 'En curso');
-          const enCola = cola.filter((t) => t.estado === 'En cola').length;
-          const resumen = fichas.get(claveFicha(m.slug));
-          return (
-            <Link key={m.id} href={`/maquinas/${m.slug}`} className="card stack maquina" data-estado-maquina={m.estado}>
-              <header className="maquina-head">
-                <div className="stack" style={{ gap: 2, minWidth: 0 }}>
-                  <strong className="maquina-nombre">{m.apodo ?? m.nombre}</strong>
-                  {m.apodo ? <span className="muted small">{m.nombre}</span> : null}
-                </div>
-                <span className="badge" data-estado-maquina={m.estado}>
-                  {m.estado}
-                </span>
-              </header>
-              <span className="row" style={{ margin: 0 }}>
-                <span className="category">{m.tipo}</span>
-                {m.ranuras > 1 ? <span className="muted small">{m.ranuras} ranuras</span> : null}
-              </span>
+      {grupos.map(({ tipo, lista }) => (
+        <section key={tipo} id={anclaDe(tipo)} className="stack grupo-maquinas">
+          <header className="section-head">
+            <h2>{TITULO_TIPO[tipo] ?? tipo}</h2>
+            <span className="muted small">{lista.length}</span>
+          </header>
+          <div className="maquinas">
+            {lista.map((m) => {
+              const cola = colas.get(m.id) ?? [];
+              const actual = cola.find((t) => t.estado === 'En curso');
+              const enCola = cola.filter((t) => t.estado === 'En cola').length;
+              const resumen = fichas.get(claveFicha(m.slug));
+              return (
+                <Link key={m.id} href={`/maquinas/${m.slug}`} className="card stack maquina" data-estado-maquina={m.estado}>
+                  <header className="maquina-head">
+                    <div className="stack" style={{ gap: 2, minWidth: 0 }}>
+                      <strong className="maquina-nombre">{m.apodo ?? m.nombre}</strong>
+                      {m.apodo ? <span className="muted small">{m.nombre}</span> : null}
+                    </div>
+                    <span className="badge" data-estado-maquina={m.estado}>
+                      {m.estado}
+                    </span>
+                  </header>
+                  {m.ranuras > 1 ? <span className="muted small">{m.ranuras} ranuras</span> : null}
 
-              <ul className="ranuras">
-                {consumiblesDe(m).map((c) => (
-                  <li key={c.ranura}>
-                    {m.ranuras > 1 ? <span className="muted small ranura-num">{c.ranura}</span> : null}
-                    {c.insumo || c.color ? (
-                      <span className="small">
-                        {c.insumo ? `${c.insumo} ` : ''}
-                        {c.color ? <Color nombre={c.color} /> : null}
-                      </span>
-                    ) : (
-                      <span className="muted small">vacía</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
+                  <ul className="ranuras">
+                    {consumiblesDe(m).map((c) => (
+                      <li key={c.ranura}>
+                        {m.ranuras > 1 ? <span className="muted small ranura-num">{c.ranura}</span> : null}
+                        {c.insumo || c.color ? (
+                          <span className="small">
+                            {c.insumo ? `${c.insumo} ` : ''}
+                            {c.color ? <Color nombre={c.color} /> : null}
+                          </span>
+                        ) : (
+                          <span className="muted small">vacía</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
 
-              {actual ? (
-                <span className="producto-avance">
-                  Trabajando: {nombreTrabajo(actual, productos)} · {actual.piezas} pz
-                </span>
-              ) : null}
-              <span className="muted small">
-                {enCola ? `${enCola} en cola` : 'Cola vacía'}
-                {resumen?.pendientes
-                  ? ` · ${resumen.pendientes} ${resumen.pendientes === 1 ? 'tarea' : 'tareas'}`
-                  : ''}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
+                  {actual ? (
+                    <span className="producto-avance">
+                      Trabajando: {nombreTrabajo(actual, productos)} · {actual.piezas} pz
+                    </span>
+                  ) : null}
+                  <span className="muted small">
+                    {enCola ? `${enCola} en cola` : 'Cola vacía'}
+                    {resumen?.pendientes
+                      ? ` · ${resumen.pendientes} ${resumen.pendientes === 1 ? 'tarea' : 'tareas'}`
+                      : ''}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+      {!grupos.length && maquinas.length ? <p className="muted">Ninguna máquina en ese estado.</p> : null}
 
       <section className="card stack">
         <h2>Nueva máquina</h2>
